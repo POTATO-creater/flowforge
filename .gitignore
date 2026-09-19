@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.codebuddy/
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+tsconfig.tsbuildinfo
