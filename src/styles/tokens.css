@@ -1,0 +1,82 @@
+/* ============================================================
+   FlowForge 设计令牌 — 暗色 Builder 工具风
+   单一方向：深墨蓝灰画布 + 细点网格 + 唯一青绿强调色
+   ============================================================ */
+:root {
+  /* —— 色彩：基底 —— */
+  --bg-canvas: #0e1116; /* 画布最深背景 */
+  --bg-app: #0b0e13; /* 整体 app 背景 */
+  --bg-panel: #151a21; /* 面板 */
+  --bg-panel-2: #1b212b; /* 面板次级（输入框/悬浮） */
+  --bg-elevated: #20262f; /* 弹窗/下拉 */
+  --bg-hover: #232a34;
+
+  /* —— 色彩：边框 / 分隔 —— */
+  --border-hair: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* —— 色彩：文本 —— */
+  --text-primary: #e8edf2; /* 主文本（对比度 > 4.5:1） */
+  --text-secondary: #9aa7b4; /* 次级文本 */
+  --text-muted: #5f6c79; /* 弱化 / 占位 */
+
+  /* —— 强调色（唯一）—— 电光青绿 —— */
+  --accent: #34e3b0;
+  --accent-dim: rgba(52, 227, 176, 0.16);
+  --accent-strong: #19c895;
+  --accent-contrast: #04130d; /* 强调色上的文字 */
+
+  /* —— 语义状态色 —— */
+  --st-idle: #5f6c79;
+  --st-running: #34e3b0;
+  --st-success: #4ade80;
+  --st-error: #ff5d6c;
+  --st-warn: #f5b14c;
+
+  /* —— 节点类型色（克制使用，仅作小标识）—— */
+  --nt-start: #6ea8fe;
+  --nt-llm: #34e3b0;
+  --nt-tool: #f5b14c;
+  --nt-condition: #c792ea;
+  --nt-code: #8be9fd;
+  --nt-output: #ff9e64;
+
+  /* —— 字体 —— */
+  --font-ui: 'Space Grotesk', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* —— 字阶（真实数值，clamp 流体）—— */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: clamp(20px, 2vw, 26px);
+
+  /* —— 间距（4px 基准刻度）—— */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* —— 圆角（层级化）—— */
+  --r-node: 10px;
+  --r-btn: 8px;
+  --r-panel: 14px;
+  --r-pill: 999px;
+
+  /* —— 阴影（3 级）—— */
+  --sh-1: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --sh-3: 0 24px 60px rgba(0, 0, 0, 0.55);
+
+  /* —— 动效 —— */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 150ms;
+  --dur-base: 280ms;
+  --dur-slow: 600ms;
+}
