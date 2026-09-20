@@ -10,7 +10,7 @@ import {
 } from '../fieldDefs';
 import type { FieldDef, NodeConfig, FlowNodeData } from '../types';
 import { TrashIcon, SparkIcon, ArrowLeftIcon } from '../lib/icons';
-import { readableOutput } from '../lib/preview';
+import { readableOutput, outputImage } from '../lib/preview';
 
 /** 上游节点信息：用于「把上游结果放进来」按钮 */
 interface UpstreamRef {
@@ -63,6 +63,8 @@ export function Inspector() {
   const spec = NODE_FIELDS[kind];
   const cfg = node.data.config as unknown as Record<string, unknown>;
   const primary = primaryFieldOf(kind);
+  // 这次结果如果是图，就真把图显示出来
+  const pic = node.data.run?.status === 'success' ? outputImage(node.data.run.output) : '';
 
   // 小白模式：只留主字段（1 个）；大佬模式：基础字段全显示
   const basicFields =
@@ -300,10 +302,27 @@ export function Inspector() {
                 {node.data.run.durationMs != null ? ` · ${node.data.run.durationMs}毫秒` : ''}
               </span>
             </span>
+
+            {/* 结果是一张图，就真把图放出来，而不是只给一句话 */}
+            {node.data.run.status === 'success' && pic && (
+              <a
+                className="logs__image"
+                href={pic}
+                target="_blank"
+                rel="noreferrer"
+                title="点一下看大图（在新标签打开）"
+              >
+                <img src={pic} alt="这次跑出来的图" />
+                <span className="logs__image-tip">点图可以看大图</span>
+              </a>
+            )}
+
             <pre className="logs__detail" style={{ maxHeight: 160 }}>
               {node.data.run.error
                 ? `出错了：${node.data.run.error}`
-                : prettyOutput(node.data.run.output)}
+                : pic
+                  ? '图片就在上面，点一下能看大图。'
+                  : prettyOutput(node.data.run.output)}
             </pre>
           </div>
         )}
