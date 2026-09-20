@@ -802,6 +802,91 @@ select {
   gap: 5px;
 }
 
+/* ============================================================
+   上游结果：点一下就插进输入框，用户不用记任何语法
+   ============================================================ */
+.upstream {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-node);
+  border: 1px dashed var(--border);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.upstream__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.upstream__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.upstream__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.upstream__btn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
+}
+.upstream__btn:active {
+  transform: scale(0.97);
+}
+.upstream__name {
+  font-weight: 600;
+}
+.upstream__res {
+  color: var(--text-muted);
+}
+.upstream__res::before {
+  content: '·';
+  margin-right: 4px;
+  opacity: 0.6;
+}
+.upstream__hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   滑块：两端写人话，避免出现「发散程度」这类术语
+   ============================================================ */
+.slider {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.slider__input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.slider__end {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* 高级设置手风琴 */
 .accordion {
   display: flex;
