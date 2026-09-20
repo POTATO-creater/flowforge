@@ -722,6 +722,373 @@ select {
   background: var(--st-warn);
 }
 
+/* ===================== 模式切换（小白 / 大佬） ===================== */
+.mode-switch {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--r-btn);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-app);
+  position: relative;
+  z-index: 1;
+}
+.mode-switch__btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  padding: 5px 11px;
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.mode-switch__btn:hover {
+  color: var(--text-secondary);
+}
+.mode-switch__btn.is-active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ===================== Sidebar 分组 ===================== */
+.sidebar__section + .sidebar__section {
+  margin-top: var(--sp-5);
+}
+.sidebar__section .sidebar__title {
+  margin-bottom: var(--sp-2);
+}
+/* 小白模式下描述用两行截断展示人话说明 */
+.palette__desc {
+  line-height: 1.45;
+}
+
+/* ===================== Inspector：模式提示与折叠 ===================== */
+.inspector__mode-tag {
+  margin-left: var(--sp-2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.inspector__plain {
+  padding: var(--sp-3);
+  border-radius: var(--r-node);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+}
+.inspector__divider {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.field__label-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* 高级设置手风琴 */
+.accordion {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3);
+  border-radius: var(--r-btn);
+  border: 1px dashed var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-align: left;
+}
+.accordion:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.accordion__count {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.accordion__caret {
+  transition: transform var(--dur-fast);
+  color: var(--text-muted);
+}
+.accordion__caret.is-open {
+  transform: rotate(180deg);
+}
+
+/* 应用技能 */
+.skill-apply {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+.skill-apply .select {
+  flex: 1;
+  min-width: 0;
+}
+.skill-apply__btns {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.skill-apply__btns .btn {
+  height: auto;
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+}
+
+/* ===================== 宽弹窗 / 画廊 ===================== */
+.modal--wide {
+  width: min(860px, 94vw);
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--sp-3);
+}
+.tpl-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-node);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+  text-align: left;
+  color: var(--text-primary);
+  transition: border-color var(--dur-fast), transform var(--dur-fast), background var(--dur-fast);
+}
+.tpl-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateY(-2px);
+}
+.tpl-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.tpl-card__name {
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  flex: 1;
+}
+.tpl-card__badge {
+  flex: none;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(245, 177, 76, 0.16);
+  color: var(--st-warn);
+  border: 1px solid rgba(245, 177, 76, 0.4);
+}
+.tpl-card__desc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  flex: 1;
+}
+.tpl-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tpl-card__node {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  opacity: 0.85;
+}
+.tpl-card__cta {
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* 覆盖确认 */
+.confirm {
+  padding: var(--sp-2) 0;
+}
+.confirm__title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  margin-bottom: var(--sp-3);
+}
+.confirm__desc {
+  margin: 0 0 var(--sp-5);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.confirm__btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+/* ===================== 技能库 ===================== */
+.tabs {
+  display: flex;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border-hair);
+  padding-bottom: var(--sp-1);
+}
+.tab {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: var(--r-btn);
+}
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.tab.is-active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.toast-inline {
+  padding: 7px 12px;
+  border-radius: var(--r-btn);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+}
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.skill-card {
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-node);
+  background: var(--bg-panel-2);
+  padding: var(--sp-3);
+}
+.skill-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.skill-card__name {
+  font-weight: 600;
+  font-size: var(--fs-md);
+  flex: 1;
+}
+.skill-card__builtin {
+  flex: none;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.btn--tiny {
+  width: 26px;
+  height: 26px;
+}
+.skill-card__desc {
+  margin-top: 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.skill-card__toggle {
+  margin-top: 6px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  padding: 2px 0;
+}
+.skill-card__body {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3);
+  border-radius: 6px;
+  background: var(--bg-app);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.65;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* 上传区 */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  border-radius: var(--r-node);
+  border: 1px dashed var(--border-strong);
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.dropzone:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.divider-or {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+.divider-or::before,
+.divider-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-hair);
+}
+.modal__foot--inline {
+  border-top: none;
+  padding: 0;
+  justify-content: flex-start;
+}
+
+/* 画布空状态 CTA */
+.canvas-empty__cta {
+  margin-top: var(--sp-4);
+  pointer-events: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
