@@ -1,82 +1,148 @@
 import { type NodeProps, type Node } from '@xyflow/react';
-import type { FlowNodeData } from '../types';
+import type { FlowNodeData, NodeConfig } from '../types';
 import { NODE_METAS } from '../nodeMeta';
 import { NodeShell } from './NodeShell';
 
 type FlowNodeType = Node<FlowNodeData, 'flow'>;
 
+/** 读取配置里的字符串字段（新增节点类型共用） */
+function S(cfg: NodeConfig, key: string): string {
+  const v = (cfg as unknown as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : '';
+}
+
 export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
   const meta = NODE_METAS[data.kind];
   const status = data.run?.status;
+  const cfg = data.config;
+
+  // 统一的渲染参数，避免每分支重复
+  const shell = (kindLabel: string, sources?: { id: string; top: string }[]) => ({
+    label: data.label,
+    kindLabel,
+    colorVar: meta.colorVar,
+    selected,
+    status,
+    ...(sources ? { sources } : {}),
+  });
 
   switch (data.kind) {
-    case 'start': {
-      const c = data.config as Extract<FlowNodeData['config'], { text: string }>;
+    case 'start':
       return (
-        <NodeShell label={data.label} kindLabel="start" colorVar={meta.colorVar} selected={selected} status={status} hasTarget={false}>
-          <div className="node__preview">{c.text || '（空输入）'}</div>
+        <NodeShell {...shell('start')} hasTarget={false}>
+          <div className="node__preview">{S(cfg, 'text') || '（空输入）'}</div>
         </NodeShell>
       );
-    }
-    case 'llm': {
-      const c = data.config as Extract<FlowNodeData['config'], { prompt: string }>;
+
+    case 'llm':
       return (
-        <NodeShell label={data.label} kindLabel="llm" colorVar={meta.colorVar} selected={selected} status={status}>
+        <NodeShell {...shell('llm')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">{c.model || '默认模型'}</span>
+            <span className="tag">{S(cfg, 'model') || '默认模型'}</span>
           </div>
-          <div className="node__preview">{c.prompt}</div>
+          <div className="node__preview">{S(cfg, 'prompt')}</div>
         </NodeShell>
       );
-    }
-    case 'tool': {
-      const c = data.config as Extract<FlowNodeData['config'], { url: string; method: string }>;
+
+    case 'chain':
       return (
-        <NodeShell label={data.label} kindLabel="tool" colorVar={meta.colorVar} selected={selected} status={status}>
+        <NodeShell {...shell('cot')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">{c.method}</span>
+            <span className="tag">{S(cfg, 'steps') || '3'} 步</span>
+            <span className="tag" style={{ marginLeft: 4 }}>
+              {S(cfg, 'model') || '默认模型'}
+            </span>
           </div>
-          <div className="node__preview">{c.url}</div>
+          <div className="node__preview">{S(cfg, 'question')}</div>
         </NodeShell>
       );
-    }
-    case 'condition': {
-      const c = data.config as Extract<FlowNodeData['config'], { expression: string }>;
+
+    case 'agent':
+      return (
+        <NodeShell {...shell('bot')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">工具调用</span>
+            <span className="tag" style={{ marginLeft: 4 }}>
+              ≤{S(cfg, 'maxRounds') || '3'} 轮
+            </span>
+          </div>
+          <div className="node__preview">{S(cfg, 'prompt')}</div>
+        </NodeShell>
+      );
+
+    case 'tool':
+      return (
+        <NodeShell {...shell('api')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{S(cfg, 'method')}</span>
+          </div>
+          <div className="node__preview">{S(cfg, 'url')}</div>
+        </NodeShell>
+      );
+
+    case 'fetch':
+      return (
+        <NodeShell {...shell('web')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{S(cfg, 'extract') || 'markdown'}</span>
+          </div>
+          <div className="node__preview">{S(cfg, 'url')}</div>
+        </NodeShell>
+      );
+
+    case 'condition':
       return (
         <NodeShell
-          label={data.label}
-          kindLabel="if"
-          colorVar={meta.colorVar}
-          selected={selected}
-          status={status}
-          sources={[
+          {...shell('if', [
             { id: 'true', top: '34%' },
             { id: 'false', top: '66%' },
-          ]}
+          ])}
         >
-          <div className="node__preview">{c.expression}</div>
+          <div className="node__preview">{S(cfg, 'expression')}</div>
           <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
             <span style={{ color: 'var(--st-success)' }}>→ true</span>
             <span style={{ color: 'var(--st-error)' }}>→ false</span>
           </div>
         </NodeShell>
       );
-    }
-    case 'code': {
-      const c = data.config as Extract<FlowNodeData['config'], { expression: string }>;
+
+    case 'merge':
       return (
-        <NodeShell label={data.label} kindLabel="code" colorVar={meta.colorVar} selected={selected} status={status}>
-          <div className="node__preview">{c.expression}</div>
+        <NodeShell {...shell('mrg')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{S(cfg, 'mode') || 'concat'}</span>
+          </div>
+          <div className="node__preview" style={{ color: 'var(--text-muted)' }}>
+            汇聚所有上游输出
+          </div>
         </NodeShell>
       );
-    }
-    case 'output': {
-      const c = data.config as Extract<FlowNodeData['config'], { template: string }>;
+
+    case 'loop':
       return (
-        <NodeShell label={data.label} kindLabel="out" colorVar={meta.colorVar} selected={selected} status={status} sources={[]}>
-          <div className="node__preview">{c.template}</div>
+        <NodeShell {...shell('loop')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">≤{S(cfg, 'maxItems') || '10'} 项</span>
+            <span className="tag" style={{ marginLeft: 4 }}>
+              {S(cfg, 'model') || '默认模型'}
+            </span>
+          </div>
+          <div className="node__preview">{S(cfg, 'itemPrompt')}</div>
         </NodeShell>
       );
-    }
+
+    case 'code':
+      return (
+        <NodeShell {...shell('js')}>
+          <div className="node__preview">{S(cfg, 'expression')}</div>
+        </NodeShell>
+      );
+
+    case 'output':
+      return (
+        <NodeShell {...shell('out', [])}>
+          <div className="node__preview">{S(cfg, 'template')}</div>
+        </NodeShell>
+      );
   }
 }
