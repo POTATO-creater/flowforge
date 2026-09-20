@@ -30,7 +30,7 @@ export function PresetsModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal__head">
-          选择模板
+          现成的例子
           <button className="btn btn--icon btn--ghost" onClick={onClose} aria-label="关闭">
             <CloseIcon />
           </button>
@@ -39,18 +39,18 @@ export function PresetsModal({ onClose }: { onClose: () => void }) {
         <div className="modal__body">
           {target ? (
             <div className="confirm">
-              <div className="confirm__title">载入「{target.name}」将覆盖当前画布</div>
+              <div className="confirm__title">换成「{target.name}」，画布上原有的东西就没了</div>
               <p className="confirm__desc">
-                当前画布上有 {nodeCount} 个节点，载入模板会全部替换。此操作不可撤销。
+                现在画布上有 {nodeCount} 个节点，换过去会全部替换掉，而且没法撤回。
                 <br />
-                如需保留，请先「导出」备份。
+                想留着的话，先点工具栏的「存下来」备份一份。
               </p>
               <div className="confirm__btns">
                 <button className="btn" onClick={() => setConfirmId(null)}>
-                  取消
+                  算了
                 </button>
                 <button className="btn btn--primary" onClick={() => doLoad(target.id)}>
-                  覆盖并载入
+                  换掉，开始用
                 </button>
               </div>
             </div>
@@ -61,7 +61,7 @@ export function PresetsModal({ onClose }: { onClose: () => void }) {
                   <button key={t.id} className="tpl-card" onClick={() => onPick(t.id)}>
                     <div className="tpl-card__head">
                       <span className="tpl-card__name">{t.name}</span>
-                      {t.needsKey && <span className="tpl-card__badge">需 API Key</span>}
+                      {t.needsKey && <span className="tpl-card__badge">要先填密钥</span>}
                     </div>
                     <p className="tpl-card__desc">{t.desc}</p>
                     <div className="tpl-card__badges">
@@ -79,12 +79,12 @@ export function PresetsModal({ onClose }: { onClose: () => void }) {
                         );
                       })}
                     </div>
-                    <span className="tpl-card__cta">载入此模板 →</span>
+                    <span className="tpl-card__cta">就用这个 →</span>
                   </button>
                 ))}
               </div>
               <div className="field__hint">
-                也可以从外部导入模板：点工具栏「导入」选择符合格式的 .json 文件。
+                挑一个直接用就行，里面的内容都可以随手改。
               </div>
             </>
           )}
