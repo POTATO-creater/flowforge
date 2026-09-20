@@ -419,7 +419,7 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
       return (
         <NodeShell {...shell('岔')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">{S(cfg, 'mode') === 'number' ? '按数字大小' : '按关键词'}</span>
+            <span className="tag">按关键词分路</span>
           </div>
           <div className="node__preview">
             {S(cfg, 'routes') || '还没填往哪几路走'}
@@ -436,6 +436,21 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
             </span>
           </div>
           <div className="node__preview">{S(cfg, 'message') || '说明为什么停'}</div>
+        </NodeShell>
+      );
+
+    // ==================== 看结果 ====================
+
+    case 'watch':
+      return (
+        // 显示面板是「终点」，只看不往外传，所以不给右边的连接点
+        <NodeShell {...shell('显')} sources={[]}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{S(cfg, 'note') || '盯住这一步'}</span>
+          </div>
+          <div className="node__preview">
+            看的是：{S(cfg, 'want') || '这个节点的全部内容'}
+          </div>
         </NodeShell>
       );
 
