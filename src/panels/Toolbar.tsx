@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
+import { useFlowStore } from '../store/flowStore';
 import { exportCanvasPng } from '../lib/png';
 import {
   PlayIcon,
@@ -9,6 +10,8 @@ import {
   ImageIcon,
   SettingsIcon,
   TrashIcon,
+  TemplatesIcon,
+  SkillIcon,
 } from '../lib/icons';
 
 interface ToolbarProps {
@@ -19,6 +22,8 @@ interface ToolbarProps {
   onImportFile: (file: File) => void;
   onClear: () => void;
   onOpenSettings: () => void;
+  onOpenTemplates: () => void;
+  onOpenSkills: () => void;
 }
 
 export function Toolbar({
@@ -29,9 +34,13 @@ export function Toolbar({
   onImportFile,
   onClear,
   onOpenSettings,
+  onOpenTemplates,
+  onOpenSkills,
 }: ToolbarProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const { getNodes } = useReactFlow();
+  const mode = useFlowStore((s) => s.mode);
+  const setMode = useFlowStore((s) => s.setMode);
 
   return (
     <header className="toolbar">
@@ -52,9 +61,33 @@ export function Toolbar({
         )}
       </div>
 
+      {/* 模式切换：小白 / 大佬 */}
+      <div className="mode-switch" role="group" aria-label="界面模式">
+        <button
+          className={`mode-switch__btn ${mode === 'basic' ? 'is-active' : ''}`}
+          onClick={() => setMode('basic')}
+          title="隐藏高级设置，只保留核心选项"
+        >
+          小白模式
+        </button>
+        <button
+          className={`mode-switch__btn ${mode === 'pro' ? 'is-active' : ''}`}
+          onClick={() => setMode('pro')}
+          title="展示全部可调参数"
+        >
+          大佬模式
+        </button>
+      </div>
+
       <div className="toolbar__spacer" />
 
       <div className="toolbar__group">
+        <button className="btn" onClick={onOpenTemplates} title="从模板快速创建">
+          <TemplatesIcon /> 模板
+        </button>
+        <button className="btn" onClick={onOpenSkills} title="技能库 / 导入技能">
+          <SkillIcon /> 技能
+        </button>
         <button className="btn" onClick={onExportJson} title="导出工作流 JSON">
           <DownloadIcon /> 导出
         </button>
