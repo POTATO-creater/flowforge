@@ -44,22 +44,22 @@ export function SkillsModal({ onClose }: { onClose: () => void }) {
         /* 单个失败不阻塞其余 */
       }
     }
-    setMsg(n > 0 ? `已导入 ${n} 个技能` : '未导入任何技能（内容为空或读取失败）');
+    setMsg(n > 0 ? `成功导入 ${n} 个技能` : '没能导入，可能是文件是空的或者读不出来');
     setTimeout(() => setMsg(''), 3000);
   };
 
   const savePasted = () => {
     if (!pasteBody.trim()) {
-      setMsg('技能内容不能为空');
+      setMsg('技能内容还空着，写点东西再保存吧');
       setTimeout(() => setMsg(''), 2500);
       return;
     }
-    const { name, desc, prompt } = parseSkillText(pasteBody, pasteName.trim() || '自定义技能');
+    const { name, desc, prompt } = parseSkillText(pasteBody, pasteName.trim() || '我自己写的技能');
     addSkill({ name: pasteName.trim() || name, desc, prompt });
     setPasteName('');
     setPasteBody('');
     setTab('list');
-    setMsg('已保存');
+    setMsg('存好了');
     setTimeout(() => setMsg(''), 2500);
   };
 
@@ -67,7 +67,7 @@ export function SkillsModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal__head">
-          技能库
+          技能
           <button className="btn btn--icon btn--ghost" onClick={onClose} aria-label="关闭">
             <CloseIcon />
           </button>
@@ -76,10 +76,10 @@ export function SkillsModal({ onClose }: { onClose: () => void }) {
         <div className="modal__body">
           <div className="tabs">
             <button className={`tab ${tab === 'list' ? 'is-active' : ''}`} onClick={() => setTab('list')}>
-              全部技能（{skills.length}）
+              全部（{skills.length}）
             </button>
             <button className={`tab ${tab === 'paste' ? 'is-active' : ''}`} onClick={() => setTab('paste')}>
-              导入 / 新建
+              加新的
             </button>
           </div>
 
@@ -96,33 +96,33 @@ export function SkillsModal({ onClose }: { onClose: () => void }) {
                     ) : (
                       <button
                         className="btn btn--icon btn--ghost btn--tiny"
-                        title="删除技能"
+                        title="删掉这个技能"
                         onClick={() => removeSkill(s.id)}
                       >
                         <TrashIcon size={14} />
                       </button>
                     )}
                   </div>
-                  <div className="skill-card__desc">{s.desc || '（无描述）'}</div>
+                  <div className="skill-card__desc">{s.desc || '（没写说明）'}</div>
                   <button
                     className="skill-card__toggle"
                     onClick={() => setExpanded(expanded === s.id ? null : s.id)}
                   >
-                    {expanded === s.id ? '收起内容 ▲' : '查看内容 ▼'}
+                    {expanded === s.id ? '收起来 ▲' : '看看里面写了什么 ▼'}
                   </button>
                   {expanded === s.id && <pre className="skill-card__body">{s.prompt}</pre>}
                 </div>
               ))}
               <div className="field__hint">
-                在画布上选中「大模型 / 思维链 / 工具调用 / 循环」节点，右侧面板即可把技能注入其角色设定。
+                在画布上点中「让 AI 干活」这类节点，右边就会出现「套用一个技能」。
               </div>
             </div>
           ) : (
             <>
               <label className="dropzone">
                 <UploadIcon size={20} />
-                <span>点击选择 .md / .txt 技能文件（可多选）</span>
-                <span className="field__hint">首行「# 名称」会作为技能标题</span>
+                <span>点这里选文件，可以一次选好几个</span>
+                <span className="field__hint">文件第一行写成「# 技能名称」，就会拿它当标题</span>
                 <input
                   type="file"
                   accept=".md,.markdown,.txt,text/plain,text/markdown"
@@ -135,33 +135,33 @@ export function SkillsModal({ onClose }: { onClose: () => void }) {
                 />
               </label>
 
-              <div className="divider-or">或者直接粘贴</div>
+              <div className="divider-or">或者动手写一个</div>
 
               <div className="field">
-                <span className="field__label">技能名称</span>
+                <span className="field__label">给它起个名字</span>
                 <input
                   className="input"
                   value={pasteName}
-                  placeholder="例如：法律文书审阅"
+                  placeholder="例如：帮我看合同"
                   onChange={(e) => setPasteName(e.target.value)}
                 />
               </div>
               <div className="field">
                 <span className="field__label">
-                  技能内容
-                  <span className="field__hint">这段文字会被写入节点的角色设定</span>
+                  具体要求写什么
+                  <span className="field__hint">你在这里写的话，会变成 AI 每次都要遵守的规矩</span>
                 </span>
                 <textarea
                   className="textarea"
                   style={{ minHeight: 160 }}
                   value={pasteBody}
-                  placeholder={'# 法律文书审阅\n\n你是一位资深法务，审阅时请重点关注…'}
+                  placeholder={'# 帮我看合同\n\n你是一位资深法务，看合同时请重点检查…'}
                   onChange={(e) => setPasteBody(e.target.value)}
                 />
               </div>
               <div className="modal__foot modal__foot--inline">
                 <button className="btn btn--primary" onClick={savePasted}>
-                  <PlusIcon size={14} /> 保存技能
+                  <PlusIcon size={14} /> 存下来
                 </button>
               </div>
             </>
