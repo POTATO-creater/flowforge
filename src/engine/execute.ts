@@ -18,7 +18,14 @@ import type {
   OutputConfig,
 } from '../types';
 import { useFlowStore } from '../store/flowStore';
-import { interpolate, interpolateForJS, type VarContext } from './vars';
+import { NODE_FIELDS, VAR_FIELD, RAW_VAR_FIELD } from '../fieldDefs';
+import {
+  interpolate,
+  interpolateForJS,
+  buildAliases,
+  setActiveAliases,
+  type VarContext,
+} from './vars';
 import { callLLM, type ChatMessage, type ToolSpec } from './llm';
 import { callTool, fetchPage, requestRaw } from './tools';
 
@@ -45,23 +52,37 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
 
   const startNodes = nodes.filter((n) => n.data.kind === 'start');
   if (startNodes.length === 0) {
-    onLog({ t: now(), tag: 'err', msg: '没有「开始」节点，无法运行。请从左侧拖入一个「开始」节点。' });
+    onLog({ t: now(), tag: 'err', msg: '画布上还没有「开始」节点，不知道该从哪跑。请先从左边拖一个「开始」过来。' });
     store.setRunning(false);
     return false;
   }
   if (startNodes.length > 1) {
-    onLog({ t: now(), tag: 'info', msg: `检测到多个「开始」节点，仅执行第一个：${startNodes[0].data.label}` });
+    onLog({ t: now(), tag: 'info', msg: `画布上有好几个「开始」，只会用「${startNodes[0].data.label}」这一个。` });
   }
 
   // 拓扑排序（Kahn）—— 条件分支视为同时具备 true/false 出边
   const order = topoSort(nodes, edges);
   if (!order) {
-    onLog({ t: now(), tag: 'err', msg: '工作流存在环，无法执行。请移除循环连线。' });
+    onLog({ t: now(), tag: 'err', msg: '节点之间连成了一个圈，绕不出来没法跑。请把多余的那条连线删掉。' });
     store.setRunning(false);
     return false;
   }
 
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
+
+  // 构建中文别名表，让 {{节点名.结果名}} 这种写法能被解析
+  setActiveAliases(
+    buildAliases(
+      nodes.map((n) => ({
+        id: n.id,
+        label: n.data.label,
+        // 给用户看的中文结果名
+        resultName: NODE_FIELDS[n.data.kind].resultName ?? VAR_FIELD[n.data.kind],
+        // 引擎内部真实字段名，变量最终要落到这里
+        rawField: RAW_VAR_FIELD[n.data.kind],
+      })),
+    ),
+  );
   const ctx: VarContext = {}; // nodeId -> output 对象
   const enabled = new Set<string>(); // 当前被激活（应执行）的节点
   const conditionBranch = new Map<string, boolean>(); // condition 节点 -> 分支结果
@@ -73,7 +94,7 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
 
   for (const id of order) {
     if (controller.signal.aborted) {
-      onLog({ t: now(), tag: 'info', msg: '已手动停止。' });
+      onLog({ t: now(), tag: 'info', msg: '你点了停下，就不继续了。' });
       break;
     }
     // 只有被激活的节点才执行
@@ -84,14 +105,14 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
     const t0 = performance.now();
     const input = buildInput(node, ctx);
     store.setNodeRun(id, { status: 'running', input });
-    onLog({ t: now(), tag: 'run', msg: `▶ ${node.data.label}（${node.data.kind}）开始执行` });
+    onLog({ t: now(), tag: 'run', msg: `▶ 开始「${node.data.label}」` });
 
     try {
       const output = await executeNode(node, ctx, settings, edges, controller.signal, onLog);
       ctx[id] = output;
       const dur = Math.round(performance.now() - t0);
       store.setNodeRun(id, { status: 'success', input, output, durationMs: dur });
-      onLog({ t: now(), tag: 'ok', msg: `✓ ${node.data.label} 完成（${dur}ms）` });
+      onLog({ t: now(), tag: 'ok', msg: `✓ 「${node.data.label}」做好了，用了 ${dur} 毫秒` });
 
       // 先记录 condition 分支结果，再据此激活下游出边
       const isCondition = node.data.kind === 'condition';
@@ -110,7 +131,7 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
       const dur = Math.round(performance.now() - t0);
       const message = err instanceof Error ? err.message : String(err);
       store.setNodeRun(id, { status: 'error', input, error: message, durationMs: dur });
-      onLog({ t: now(), tag: 'err', msg: `✗ ${node.data.label} 失败：${message}` });
+      onLog({ t: now(), tag: 'err', msg: `✗ 「${node.data.label}」没跑通：${message}` });
       failed = true;
       break; // 出错即停，保留上游结果
     }
@@ -120,7 +141,7 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
   store.setRunning(false);
 
   if (!failed && !controller.signal.aborted) {
-    onLog({ t: now(), tag: 'ok', msg: '工作流执行结束。' });
+    onLog({ t: now(), tag: 'ok', msg: '整条流程跑完了。' });
   }
   return !failed;
 }
@@ -206,7 +227,7 @@ async function executeNode(
       onLog({
         t: now(),
         tag: 'info',
-        msg: `  已抓取 ${r.url}（${r.content.length} 字）`,
+        msg: `  已读到 ${r.url}，一共 ${r.content.length} 个字`,
       });
       return { content: r.content, title: r.title, url: r.url, status: r.status };
     }
@@ -343,7 +364,7 @@ async function runLoop(
   }
 
   if (items.length === 0) {
-    throw new Error('待处理内容为空，请检查「待处理内容」与「切分分隔符」');
+    throw new Error('要处理的内容是空的。请检查「要处理的内容」有没有填，或者把「按什么切开」里的分隔符换一个试试。');
   }
   const truncated = items.length > cap;
   const work = items.slice(0, cap);
@@ -351,18 +372,18 @@ async function runLoop(
     onLog({
       t: now(),
       tag: 'info',
-      msg: `  共 ${items.length} 项，超过上限，仅处理前 ${cap} 项`,
+      msg: `  一共 ${items.length} 段，太多了，只处理前面 ${cap} 段`,
     });
   }
 
   const system = interpolate(c.system, ctx);
   const results: string[] = [];
   for (let i = 0; i < work.length; i++) {
-    if (signal.aborted) throw new Error('已手动停止');
+    if (signal.aborted) throw new Error('你点了停下，就不继续了。');
     const item = work[i];
     // {{item}} 单独替换，避免与全局变量插值混淆
     const prompt = interpolate(c.itemPrompt, ctx).replace(/\{\{\s*item\s*\}\}/g, item);
-    onLog({ t: now(), tag: 'info', msg: `  [${i + 1}/${work.length}] 处理中…` });
+    onLog({ t: now(), tag: 'info', msg: `  正在处理第 ${i + 1} 段，共 ${work.length} 段…` });
     const r = await callLLM(settings, { model: c.model, system, prompt, temperature: 0.5, maxTokens: 1024 }, signal);
     results.push(r.content);
   }
@@ -398,10 +419,10 @@ async function runAgent(
   if (c.tools.trim()) {
     try {
       const parsed = JSON.parse(interpolate(c.tools, ctx));
-      if (!Array.isArray(parsed)) throw new Error('工具定义必须是数组');
+      if (!Array.isArray(parsed)) throw new Error('「它能用哪些工具」这里必须写成一个清单的样子（用 [ ] 包起来）。');
       tools = parsed as ToolSpec[];
     } catch (e) {
-      throw new Error(`工具定义 JSON 不合法：${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`「它能用哪些工具」写错格式了：${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -418,7 +439,7 @@ async function runAgent(
   let rounds = 0;
 
   for (let round = 0; round < maxRounds; round++) {
-    if (signal.aborted) throw new Error('已手动停止');
+    if (signal.aborted) throw new Error('你点了停下，就不继续了。');
     rounds = round + 1;
     const reply = await callLLM(
       settings,
@@ -442,11 +463,11 @@ async function runAgent(
       } catch {
         /* 参数不合法时以空对象继续，错误会回灌给模型 */
       }
-      onLog({ t: now(), tag: 'info', msg: `  → 调用工具 ${name}(${compact(rawArgs)})` });
+      onLog({ t: now(), tag: 'info', msg: `  → 去用「${name}」查一下（${compact(rawArgs)}）` });
 
       const { result, status } = await executeToolCall(name, args, tools, signal);
       toolCalls.push({ name, args: rawArgs, result, status });
-      onLog({ t: now(), tag: 'info', msg: `  ← ${name} 返回 ${status}（${result.length} 字）` });
+      onLog({ t: now(), tag: 'info', msg: `  ← 「${name}」查到了，回来了 ${result.length} 个字` });
 
       messages.push({ role: 'tool', tool_call_id: call.id, content: result });
     }
@@ -584,7 +605,7 @@ function evalExpr(expr: string): boolean {
     // eslint-disable-next-line no-new-func
     return Boolean(new Function(`return (${expr});`)());
   } catch (e) {
-    throw new Error(`条件表达式错误：${e instanceof Error ? e.message : String(e)}（表达式：${expr}）`);
+    throw new Error(`「在什么情况下算「是」」这句话没看懂：${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -593,7 +614,7 @@ function evalCode(expr: string, input: unknown): unknown {
     // eslint-disable-next-line no-new-func
     return new Function('input', `"use strict"; ${expr}`)(input);
   } catch (e) {
-    throw new Error(`代码执行错误：${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`这段加工代码跑不起来：${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
