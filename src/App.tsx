@@ -56,14 +56,25 @@ function Editor() {
 
   const pushLog = useCallback((e: LogEntry) => setLogs((prev) => [...prev, e]), []);
 
-  // 双击节点库 -> 在画布中心落点
+  // 双击节点库 -> 沿一条斜线依次错开落点，避免多个节点完全重叠
   useEffect(() => {
     const handler = (ev: Event) => {
       const kind = (ev as CustomEvent<NodeKind>).detail;
       const rect = wrapperRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const pos = screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-      addNodeAt(kind, pos);
+      const center = screenToFlowPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+      // 以画布中心为基准，按已有节点数量做阶梯偏移
+      const n = useFlowStore.getState().nodes.length;
+      const step = n % 4;
+      const col = Math.floor(n / 4);
+      const offset = { x: (step - 1.5) * 250 + col * 30, y: (step - 1.5) * 150 + col * 30 };
+      addNodeAt(kind, {
+        x: center.x - 110 + offset.x,
+        y: center.y - 40 + offset.y,
+      });
     };
     window.addEventListener('flowforge:add', handler);
     return () => window.removeEventListener('flowforge:add', handler);
@@ -118,22 +129,29 @@ function Editor() {
 
   return (
     <div className="app">
-      <Toolbar
-        running={running}
-        onRun={handleRun}
-        onStop={handleStop}
-        onExportJson={handleExportJson}
-        onImportFile={handleImportFile}
-        onClear={handleClear}
-        onOpenSettings={() => setShowSettings(true)}
-      />
+      <div className="app__toolbar">
+        <Toolbar
+          running={running}
+          onRun={handleRun}
+          onStop={handleStop}
+          onExportJson={handleExportJson}
+          onImportFile={handleImportFile}
+          onClear={handleClear}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+      </div>
 
-      <Sidebar />
+      <div className="app__sidebar">
+        <Sidebar />
+      </div>
 
       <div className="app__canvas">
         {noApiKey && (
           <div className="banner">
-            尚未配置 API Key，含「大模型」节点的运行会失败 · 点右上角 ⚙ 设置
+            尚未配置 API Key，含「大模型」节点的运行会失败
+            <button className="banner__link" onClick={() => setShowSettings(true)}>
+              去设置
+            </button>
           </div>
         )}
         <div className="canvas-wrap" ref={wrapperRef} onDrop={onDrop} onDragOver={onDragOver}>
@@ -147,6 +165,7 @@ function Editor() {
             onNodeClick={(_, n) => setSelected(n.id)}
             onPaneClick={() => setSelected(null)}
             fitView
+            fitViewOptions={{ padding: 0.35, maxZoom: 1, minZoom: 0.4 }}
             proOptions={{ hideAttribution: true }}
             defaultEdgeOptions={{ type: 'smoothstep' }}
             minZoom={0.2}
@@ -171,6 +190,7 @@ function Editor() {
                   <br />
                   点「运行」即可真实调用模型。
                 </p>
+                <p className="canvas-empty__tip">提示：节点可以从左侧拖拽，也可以双击快速添加</p>
               </div>
             </div>
           )}
@@ -179,7 +199,9 @@ function Editor() {
         <LogsPanel logs={logs} />
       </div>
 
-      <Inspector />
+      <div className="app__inspector">
+        <Inspector />
+      </div>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
