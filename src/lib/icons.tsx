@@ -84,3 +84,24 @@ export const PlusIcon = ({ size = 16, style }: IconProps) => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
+
+export const TemplatesIcon = ({ size = 16, style }: IconProps) => (
+  <svg {...base(size)} style={style}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
+export const SkillIcon = ({ size = 16, style }: IconProps) => (
+  <svg {...base(size)} style={style}>
+    <path d="M12 3l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 8.3l5-.7z" />
+  </svg>
+);
+
+export const SparkIcon = ({ size = 16, style }: IconProps) => (
+  <svg {...base(size)} style={style}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
+  </svg>
+);

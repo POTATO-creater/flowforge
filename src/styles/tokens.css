@@ -36,8 +36,13 @@
   /* —— 节点类型色（克制使用，仅作小标识）—— */
   --nt-start: #6ea8fe;
   --nt-llm: #34e3b0;
+  --nt-chain: #7fe3a0;
+  --nt-agent: #9d8cff;
   --nt-tool: #f5b14c;
+  --nt-fetch: #4cc9f0;
   --nt-condition: #c792ea;
+  --nt-merge: #ffd166;
+  --nt-loop: #f78fb3;
   --nt-code: #8be9fd;
   --nt-output: #ff9e64;
 
