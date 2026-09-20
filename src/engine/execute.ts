@@ -47,7 +47,7 @@ import type {
 import { useFlowStore } from '../store/flowStore';
 import { NODE_FIELDS, VAR_FIELD, RAW_VAR_FIELD } from '../fieldDefs';
 import { fetchSmart } from '../lib/net';
-import { hnListUrl, hnItemUrl, factUrl, pickHnItem, pickFactText } from '../presets/sources';
+import { hnListUrl, pickHnList, factUrl, pickFactText } from '../presets/sources';
 import { assertNever } from '../lib/assertNever';
 import {
   interpolate,
@@ -542,30 +542,18 @@ async function executeNode(
     case 'hn': {
       const c = config as HnConfig;
       const count = Math.max(1, Math.min(50, Number(c.count) || 10));
-      // 第一步：拿到一串编号
-      const listRes = await fetchSmart(
+      // Algolia 的接口一次就把榜单全带回来，不用像官方接口那样逐个取详情
+      const r = await fetchSmart(
         { url: hnListUrl(c.source), cors: 'direct', timeout: 20, signal },
         settings.proxyURL,
       );
-      if (!Array.isArray(listRes.json)) {
-        throw new Error('没能拿到榜单列表，稍后再试试。');
-      }
-      const ids = (listRes.json as number[]).slice(0, count);
+      if (r.note) onLog({ t: now(), tag: 'info', msg: `  ${r.note}` });
 
-      // 第二步：逐个取详情
-      const items: { title: string; url: string; score: number }[] = [];
-      for (const id of ids) {
-        try {
-          const r = await fetchSmart(
-            { url: hnItemUrl(id), cors: 'direct', timeout: 15, signal },
-            settings.proxyURL,
-          );
-          const it = pickHnItem(r.json);
-          if (it.title) items.push(it);
-        } catch {
-          // 单条失败不影响整体
-        }
+      const all = pickHnList(r.json);
+      if (all.length === 0) {
+        throw new Error('这次没拿到榜单，再跑一次试试。');
       }
+      const items = all.filter((x) => x.title).slice(0, count);
       onLog({ t: now(), tag: 'info', msg: `  拿到了 ${items.length} 条热榜` });
       return {
         list: items.map((x) => `${x.title}（${x.score} 分）\n${x.url}`).join('\n\n'),
