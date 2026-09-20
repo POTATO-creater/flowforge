@@ -504,18 +504,39 @@ select {
 }
 .react-flow__edge-path {
   stroke: var(--border-strong);
-  stroke-width: 1.6;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke var(--dur-fast);
 }
+/* 选中/悬停时线加粗一点，一眼看清是哪根 */
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:hover .react-flow__edge-path {
   stroke: var(--accent);
+  stroke-width: 2.4;
 }
 .react-flow__edge.edge-running .react-flow__edge-path {
   stroke: var(--accent);
-  stroke-width: 2.4;
+  stroke-width: 2.8;
+  stroke-dasharray: 7 5;
+  animation: edge-flow 0.7s linear infinite;
 }
 .react-flow__edge.edge-done .react-flow__edge-path {
   stroke: var(--st-success);
+}
+/* 数据在线条上往前走的效果 */
+@keyframes edge-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* 连接点做大一点，更好连线 */
+.react-flow__handle {
+  width: 11px;
+  height: 11px;
 }
 .react-flow__handle {
   width: 10px;
@@ -708,6 +729,27 @@ select {
 .node__result-more {
   color: var(--text-muted);
 }
+/* 结果是图片：卡片上直接把图贴出来 */
+.node__result-img {
+  display: block;
+  margin-top: 6px;
+  border-radius: var(--r-btn);
+  overflow: hidden;
+  border: 1px solid var(--border-hair);
+  cursor: zoom-in;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.node__result-img:hover {
+  border-color: var(--accent);
+  box-shadow: var(--sh-1);
+}
+.node__result-img img {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  background: #fff;
+}
 /* 运行中的流动进度条 */
 .node__result-bar {
   height: 3px;
@@ -835,6 +877,35 @@ select {
   color: var(--st-error);
   white-space: pre-wrap;
   word-break: break-word;
+}
+/* 右侧面板里的图片结果 */
+.logs__image {
+  display: block;
+  position: relative;
+  margin-bottom: 8px;
+  border-radius: var(--r-btn);
+  overflow: hidden;
+  border: 1px solid var(--border-hair);
+  background: #fff;
+  cursor: zoom-in;
+  transition: border-color var(--dur-fast);
+}
+.logs__image:hover {
+  border-color: var(--accent);
+}
+.logs__image img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+}
+.logs__image-tip {
+  display: block;
+  padding: 4px 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  text-align: center;
 }
 
 /* ===================== Modal ===================== */
