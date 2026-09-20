@@ -17,9 +17,9 @@ export function readableOutput(out: Record<string, unknown> | undefined): string
   }
 
   // 图表节点产出的是很长一串图片网址，直接铺在卡片上没法看。
-  // 这里换成一句人话，完整网址去右侧面板看。
+  // 卡片上已经把图贴出来了（见 outputImage），这里只报个数。
   if (typeof out.image === 'string' && typeof out.count === 'number') {
-    return `画好了 ${out.count} 组数据的图，点开右侧可以看到图片`;
+    return `画好了 ${out.count} 组数据的图，图就在卡片上`;
   }
 
   const v = out.content ?? out.text ?? out.result ?? out.body ?? out.answer;
@@ -36,10 +36,22 @@ export function readableOutput(out: Record<string, unknown> | undefined): string
     }
   }
 
-  // 兜底：整个 output 里找第一个字符串值
+  // 兜底：整个 output 里找第一个字符串值（跳过图片网址，它太长且要单独贴图）
   for (const val of Object.values(out)) {
-    if (typeof val === 'string' && val.trim()) return val;
+    if (typeof val === 'string' && val.trim() && !/^https?:\/\//i.test(val)) return val;
   }
+  return '';
+}
+
+/**
+ * 结果里如果是一张图，把图片地址拿出来，好让界面直接把图画出来。
+ * 「出图表」节点会产出 image 字段；「显示面板」看到一张图时，
+ * 会把地址原样放在 shown 上，这里一并认。
+ */
+export function outputImage(out: Record<string, unknown> | undefined): string {
+  if (out == null) return '';
+  const img = out.image ?? out.imageUrl ?? out.chart ?? out.shown;
+  if (typeof img === 'string' && /^(https?:|data:image\/)/i.test(img)) return img;
   return '';
 }
 
