@@ -105,3 +105,9 @@ export const SparkIcon = ({ size = 16, style }: IconProps) => (
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
   </svg>
 );
+
+export const ArrowLeftIcon = ({ size = 16, style }: IconProps) => (
+  <svg {...base(size)} style={style}>
+    <path d="M19 12H5M11 18l-6-6 6-6" />
+  </svg>
+);

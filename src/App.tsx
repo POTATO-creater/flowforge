@@ -65,6 +65,13 @@ function Editor() {
 
   const pushLog = useCallback((e: LogEntry) => setLogs((prev) => [...prev, e]), []);
 
+  // 本地调试用：把 store 挂到 window，方便在浏览器控制台里检查画布状态
+  useEffect(() => {
+    if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+      (window as unknown as Record<string, unknown>).__ffStore = useFlowStore;
+    }
+  }, []);
+
   // 双击节点库 -> 沿一条斜线依次错开落点，避免多个节点完全重叠
   useEffect(() => {
     const handler = (ev: Event) => {
@@ -162,9 +169,9 @@ function Editor() {
       <div className="app__canvas">
         {noApiKey && (
           <div className="banner">
-            尚未配置 API Key，含「大模型」节点的运行会失败
+            还没填 AI 的密钥，用到 AI 的节点跑不起来
             <button className="banner__link" onClick={() => setShowSettings(true)}>
-              去设置
+              去填一下
             </button>
           </div>
         )}
@@ -198,14 +205,14 @@ function Editor() {
           {nodes.length === 0 && (
             <div className="canvas-empty">
               <div className="canvas-empty__inner">
-                <h2>从模板开始，或拖入节点</h2>
+                <h2>这里空空如也</h2>
                 <p>
-                  点上方「模板」一键载入一个能跑的工作流，
+                  最快的办法是直接用现成的例子，点下面的按钮看看。
                   <br />
-                  也可以从左侧拖入节点自己搭。
+                  想自己搭也行，把左边的方块拖过来就好。
                 </p>
                 <button className="btn btn--primary canvas-empty__cta" onClick={() => setShowTemplates(true)}>
-                  浏览模板
+                  看看有什么现成的
                 </button>
               </div>
             </div>
