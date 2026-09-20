@@ -16,9 +16,39 @@ import type {
   LoopConfig,
   StartConfig,
   OutputConfig,
+  PickConfig,
+  FilterConfig,
+  SortConfig,
+  LimitConfig,
+  DedupeConfig,
+  SplitOutConfig,
+  AggregateConfig,
+  SummarizeConfig,
+  RenameKeysConfig,
+  MarkdownConfig,
+  HtmlConfig,
+  XmlConfig,
+  FindReplaceConfig,
+  SliceConfig,
+  DateTimeConfig,
+  CryptoConfig,
+  EncodeConfig,
+  TotpConfig,
+  JwtConfig,
+  HnConfig,
+  RssConfig,
+  ChartConfig,
+  FactConfig,
+  WaitConfig,
+  SwitchConfig,
+  StopConfig,
+  NodeKind,
 } from '../types';
 import { useFlowStore } from '../store/flowStore';
 import { NODE_FIELDS, VAR_FIELD, RAW_VAR_FIELD } from '../fieldDefs';
+import { fetchSmart } from '../lib/net';
+import { hnListUrl, hnItemUrl, factUrl, pickHnItem, pickFactText } from '../presets/sources';
+import { assertNever } from '../lib/assertNever';
 import {
   interpolate,
   interpolateForJS,
@@ -28,6 +58,36 @@ import {
 } from './vars';
 import { callLLM, type ChatMessage, type ToolSpec } from './llm';
 import { callTool, fetchPage, requestRaw } from './tools';
+import {
+  toList,
+  renderObject,
+  runPickFields,
+  runFilter,
+  runSort,
+  runLimit,
+  runRemoveDuplicates,
+  runSplitOut,
+  runAggregate,
+  runSummarize,
+  runRenameKeys,
+} from './datasets';
+import {
+  markdownToHtml,
+  htmlToMarkdown,
+  htmlToText,
+  extractHtml,
+  xmlToObject,
+  objectToXml,
+  runFindReplace,
+  runSlice,
+  runDateTime,
+  runHash,
+  runHmac,
+  runRandom,
+  runEncode,
+  runTotp,
+  runJwt,
+} from './text';
 
 export interface LogEntry {
   t: string;
@@ -85,7 +145,7 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
   );
   const ctx: VarContext = {}; // nodeId -> output 对象
   const enabled = new Set<string>(); // 当前被激活（应执行）的节点
-  const conditionBranch = new Map<string, boolean>(); // condition 节点 -> 分支结果
+  const branchChoice = new Map<string, string>(); // 分岔节点 -> 命中的出边 id
   enabled.add(startNodes[0].id);
 
   const controller = new AbortController();
@@ -114,16 +174,16 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
       store.setNodeRun(id, { status: 'success', input, output, durationMs: dur });
       onLog({ t: now(), tag: 'ok', msg: `✓ 「${node.data.label}」做好了，用了 ${dur} 毫秒` });
 
-      // 先记录 condition 分支结果，再据此激活下游出边
-      const isCondition = node.data.kind === 'condition';
-      if (isCondition && output.branch !== undefined) {
-        conditionBranch.set(id, Boolean(output.branch));
+      // 先算出「这个节点该激活哪条出边」，再据此决定下游谁进入队列
+      const activeHandle = pickActiveHandle(node.data.kind, output);
+      if (activeHandle !== undefined) {
+        branchChoice.set(id, activeHandle);
       }
       for (const e of edges.filter((ed) => ed.source === id)) {
-        if (isCondition) {
-          const branch = conditionBranch.get(id);
-          const active = (e.sourceHandle ?? 'true') === (branch ? 'true' : 'false');
-          if (!active) continue;
+        if (activeHandle !== undefined) {
+          // 分岔节点：只激活命中那一条出边
+          const handle = e.sourceHandle ?? defaultHandleFor(node.data.kind);
+          if (handle !== activeHandle) continue;
         }
         if (!enabled.has(e.target)) enabled.add(e.target);
       }
@@ -213,14 +273,24 @@ async function executeNode(
 
     case 'tool': {
       const c = config as ToolConfig;
-      const r = await callTool(c, ctx, signal);
+      const r = await callTool(c, ctx, signal, settings.proxyURL);
+      if (r.note) {
+        onLog({ t: now(), tag: 'info', msg: `  ${r.note}` });
+      }
       return { status: r.status, body: r.body, json: r.json };
     }
 
     case 'fetch': {
       const c = config as FetchConfig;
       const r = await fetchPage(
-        { url: c.url, proxy: c.proxy, extract: c.extract, headers: c.headers, timeout: c.timeout },
+        {
+          url: c.url,
+          proxy: c.proxy,
+          extract: c.extract,
+          headers: c.headers,
+          timeout: c.timeout,
+          netProxy: settings.proxyURL,
+        },
         ctx,
         signal,
       );
@@ -229,6 +299,9 @@ async function executeNode(
         tag: 'info',
         msg: `  已读到 ${r.url}，一共 ${r.content.length} 个字`,
       });
+      if (r.note) {
+        onLog({ t: now(), tag: 'info', msg: `  ${r.note}` });
+      }
       return { content: r.content, title: r.title, url: r.url, status: r.status };
     }
 
@@ -262,7 +335,509 @@ async function executeNode(
       const text = interpolate(c.template, ctx);
       return { text };
     }
+
+    // ==================== 数据整理（纯函数） ====================
+
+    case 'pick': {
+      const c = config as PickConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const result = runPickFields(input, c);
+      return { result: renderObject(result), count: Object.keys(result).length };
+    }
+
+    case 'filter': {
+      const c = config as FilterConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const result = runFilter(input, c);
+      return { result: result.join('\n'), items: result, count: result.length };
+    }
+
+    case 'sort': {
+      const c = config as SortConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const result = runSort(input, c);
+      return { result: result.join('\n'), items: result, count: result.length };
+    }
+
+    case 'limit': {
+      const c = config as LimitConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const result = runLimit(input, c);
+      return { result: result.join('\n'), items: result, count: result.length };
+    }
+
+    case 'dedupe': {
+      const c = config as DedupeConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const before = toList(input).length;
+      const result = c.ignoreCase ? runDedupeIgnoreCase(input) : runRemoveDuplicates(input);
+      onLog({
+        t: now(),
+        tag: 'info',
+        msg: `  原来 ${before} 条，去掉重复后剩 ${result.length} 条`,
+      });
+      return { result: result.join('\n'), items: result, count: result.length };
+    }
+
+    case 'splitout': {
+      const c = config as SplitOutConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const result = runSplitOut(input, unescapeUserInput(c.separator));
+      return { result: result.join('\n'), items: result, count: result.length };
+    }
+
+    case 'aggregate': {
+      const c = config as AggregateConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const sep = unescapeUserInput(c.separator);
+      const result = runAggregate(input, sep);
+      return { result, count: toList(input).length };
+    }
+
+    case 'summarize': {
+      const c = config as SummarizeConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const sep = unescapeUserInput(c.separator) || '\n';
+      const { result, count } = runSummarize(input, { op: c.op, separator: sep });
+      return { result, count };
+    }
+
+    case 'renamekeys': {
+      const c = config as RenameKeysConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const result = runRenameKeys(input, c.mapping);
+      return { result: renderObject(result), count: Object.keys(result).length };
+    }
+
+    // ==================== 文字处理 ====================
+
+    case 'markdown': {
+      const c = config as MarkdownConfig;
+      const text = interpolate(c.text, ctx);
+      const result = c.direction === 'md2html' ? markdownToHtml(text) : htmlToMarkdown(text);
+      return { result, html: result, length: result.length };
+    }
+
+    case 'html': {
+      const c = config as HtmlConfig;
+      const text = interpolate(c.text, ctx);
+      const result =
+        c.op === 'extract'
+          ? extractHtml(text, { selector: c.selector, attr: c.attr })
+          : htmlToText(text);
+      return { result, length: result.length };
+    }
+
+    case 'xml': {
+      const c = config as XmlConfig;
+      const text = interpolate(c.text, ctx);
+      if (c.direction === 'xml2obj') {
+        const obj = xmlToObject(text);
+        return { result: JSON.stringify(obj, null, 2), data: obj };
+      }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text || '{}');
+      } catch {
+        throw new Error('要转成尖括号写法的内容，得是那种「字段名: 值」的规整格式。');
+      }
+      const result = objectToXml(parsed);
+      return { result };
+    }
+
+    case 'findreplace': {
+      const c = config as FindReplaceConfig;
+      const text = interpolate(c.text, ctx);
+      const { result, count } = runFindReplace(text, {
+        find: c.find,
+        replace: c.replace,
+        regex: c.regex,
+        all: c.all,
+        ignoreCase: c.ignoreCase,
+      });
+      onLog({ t: now(), tag: 'info', msg: `  一共替换了 ${count} 处` });
+      return { result, count };
+    }
+
+    case 'slice': {
+      const c = config as SliceConfig;
+      const text = interpolate(c.text, ctx);
+      // 界面上的「第几段」从 1 开始数，这里换算成 0 开始
+      const result = runSlice(text, {
+        from: c.from > 0 ? c.from - 1 : 0,
+        to: c.to,
+        bySeparator: c.bySeparator,
+        separator: unescapeUserInput(c.separator),
+        index: c.index > 0 ? c.index - 1 : 0,
+      });
+      return { result, length: result.length };
+    }
+
+    // ==================== 日期与编码 ====================
+
+    case 'datetime': {
+      const c = config as DateTimeConfig;
+      const source = interpolate(c.source, ctx);
+      const result = runDateTime(source, {
+        op: c.op,
+        inputFormat: 'auto',
+        format: c.format,
+        amount: c.amount,
+        unit: c.unit,
+        target: interpolate(c.target, ctx),
+      });
+      return { result };
+    }
+
+    case 'crypto': {
+      const c = config as CryptoConfig;
+      const text = interpolate(c.text, ctx);
+      if (c.op === 'random') {
+        const result = runRandom(c.length, c.randomKind);
+        return { result, length: result.length };
+      }
+      if (c.op === 'hmac') {
+        const algo = c.algorithm === 'SHA-1' ? 'SHA-256' : c.algorithm;
+        const result = await runHmac(text, interpolate(c.secret, ctx), algo);
+        return { result, algorithm: algo };
+      }
+      const result = await runHash(text, c.algorithm);
+      return { result, algorithm: c.algorithm };
+    }
+
+    case 'encode': {
+      const c = config as EncodeConfig;
+      const text = interpolate(c.text, ctx);
+      const result = runEncode(text, { op: c.op });
+      return { result, length: result.length };
+    }
+
+    case 'totp': {
+      const c = config as TotpConfig;
+      const { code, secondsLeft } = await runTotp(c.secret, {
+        digits: c.digits,
+        period: c.period,
+        algorithm: c.algorithm,
+      });
+      onLog({
+        t: now(),
+        tag: 'info',
+        msg: `  当前口令 ${code}，还有 ${secondsLeft} 秒换下一个`,
+      });
+      return { code, secondsLeft };
+    }
+
+    case 'jwt': {
+      const c = config as JwtConfig;
+      const result = await runJwt(interpolate(c.token, ctx), {
+        op: c.op,
+        secret: interpolate(c.secret, ctx),
+        payload: interpolate(c.payload, ctx),
+      });
+      return { result };
+    }
+
+    // ==================== 网络类 ====================
+
+    case 'hn': {
+      const c = config as HnConfig;
+      const count = Math.max(1, Math.min(50, Number(c.count) || 10));
+      // 第一步：拿到一串编号
+      const listRes = await fetchSmart(
+        { url: hnListUrl(c.source), cors: 'direct', timeout: 20, signal },
+        settings.proxyURL,
+      );
+      if (!Array.isArray(listRes.json)) {
+        throw new Error('没能拿到榜单列表，稍后再试试。');
+      }
+      const ids = (listRes.json as number[]).slice(0, count);
+
+      // 第二步：逐个取详情
+      const items: { title: string; url: string; score: number }[] = [];
+      for (const id of ids) {
+        try {
+          const r = await fetchSmart(
+            { url: hnItemUrl(id), cors: 'direct', timeout: 15, signal },
+            settings.proxyURL,
+          );
+          const it = pickHnItem(r.json);
+          if (it.title) items.push(it);
+        } catch {
+          // 单条失败不影响整体
+        }
+      }
+      onLog({ t: now(), tag: 'info', msg: `  拿到了 ${items.length} 条热榜` });
+      return {
+        list: items.map((x) => `${x.title}（${x.score} 分）\n${x.url}`).join('\n\n'),
+        items,
+        count: items.length,
+      };
+    }
+
+    case 'rss': {
+      const c = config as RssConfig;
+      const url = interpolate(c.url, ctx).trim();
+      if (!url) throw new Error('这个节点还没填订阅地址。');
+      const count = Math.max(1, Math.min(50, Number(c.count) || 10));
+      const r = await fetchSmart({ url, cors: 'either', timeout: 25, signal }, settings.proxyURL);
+      if (r.note) onLog({ t: now(), tag: 'info', msg: `  ${r.note}` });
+
+      const items = parseFeed(r.text, count);
+      onLog({ t: now(), tag: 'info', msg: `  一共读到 ${items.length} 篇` });
+      return {
+        list: items.map((x) => `${x.title}\n${x.link}`).join('\n\n'),
+        items,
+        count: items.length,
+      };
+    }
+
+    case 'chart': {
+      const c = config as ChartConfig;
+      const labels = interpolate(c.labels, ctx)
+        .split(/[,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const values = interpolate(c.values, ctx)
+        .split(/[,，\n]/)
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isFinite(n));
+      if (labels.length === 0 || values.length === 0) {
+        throw new Error('要画图得先有数字。请把「每根柱子叫什么」和「每根柱子多高」都填上。');
+      }
+      if (labels.length !== values.length) {
+        throw new Error(
+          `「叫什么」有 ${labels.length} 项，「多高」有 ${values.length} 项，两边数量得一样。`,
+        );
+      }
+      const spec = {
+        type: c.chartType,
+        data: {
+          labels,
+          datasets: [{ label: interpolate(c.title, ctx) || '数值', data: values }],
+        },
+        options: c.title ? { title: { display: true, text: interpolate(c.title, ctx) } } : {},
+      };
+      // QuickChart 用网址传图表定义，生成的就是一张图片地址
+      const url = `https://quickchart.io/chart?w=600&h=360&c=${encodeURIComponent(
+        JSON.stringify(spec),
+      )}`;
+      return { url, image: url, count: values.length };
+    }
+
+    case 'fact': {
+      const c = config as FactConfig;
+      const r = await fetchSmart(
+        { url: factUrl(c.source), cors: 'direct', timeout: 20, signal },
+        settings.proxyURL,
+      );
+      const text = pickFactText(r.json);
+      if (!text) throw new Error('这次没拿到内容，再跑一次试试。');
+      return { text, content: text };
+    }
+
+    // ==================== 流程控制补充 ====================
+
+    case 'wait': {
+      const c = config as WaitConfig;
+      const secs = Math.max(0, Math.min(60, Number(c.seconds) || 0));
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      if (secs > 0) {
+        onLog({ t: now(), tag: 'info', msg: `  先等 ${secs} 秒…` });
+        await sleep(secs * 1000, signal);
+      }
+      // 原样往下传，不改变内容
+      return { text: typeof input === 'string' ? input : JSON.stringify(input) };
+    }
+
+    case 'switch': {
+      const c = config as SwitchConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      const text = typeof input === 'string' ? input : JSON.stringify(input ?? '');
+      const routes = parseRoutes(c.routes);
+
+      let hit: string | undefined;
+      for (const [keyword, handle] of routes) {
+        if (keyword && text.includes(keyword)) {
+          hit = handle;
+          break;
+        }
+      }
+      if (hit === undefined) {
+        if (c.fallback === 'yes') {
+          onLog({ t: now(), tag: 'info', msg: '  哪个关键词都没出现，走「其它」那条路' });
+          hit = 'fallback';
+        } else {
+          onLog({ t: now(), tag: 'info', msg: '  哪个关键词都没出现，哪条路都不走' });
+          return { branch: '', handle: '', text };
+        }
+      }
+      const label = routes.find(([, h]) => h === hit)?.[0] ?? '其它';
+      onLog({ t: now(), tag: 'info', msg: `  走了「${hit === 'fallback' ? '其它' : label}」这条路` });
+      return { branch: hit, handle: hit, text };
+    }
+
+    case 'stop': {
+      const c = config as StopConfig;
+      const input = firstUpstreamValue(node.id, ctx, edges);
+      // 把上面传下来的内容原样带上，方便在结果里看到「停在哪一步」
+      const text = typeof input === 'string' ? input : JSON.stringify(input ?? '');
+      if (c.when === 'always' || !text.trim()) {
+        throw new Error(interpolate(c.message, ctx) || '按设置在这里停下来了。');
+      }
+      return { text };
+    }
+
+    default:
+      // 漏写 case 会在这里编译失败，而不是运行时静默不执行
+      return assertNever(kind, 'executeNode');
   }
+}
+
+/** 简易休眠，可被「停下」按钮中断 */
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new Error('已停止。'));
+      return;
+    }
+    const t = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(new Error('已停止。'));
+    };
+    signal.addEventListener('abort', onAbort);
+  });
+}
+
+/** 解析「分多条路」的配置：每行「关键词=分支名」 */
+function parseRoutes(raw: string): [string, string][] {
+  const out: [string, string][] = [];
+  for (const line of (raw ?? '').split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t) continue;
+    const i = t.indexOf('=');
+    if (i === -1) continue;
+    const keyword = t.slice(0, i).trim();
+    const name = t.slice(i + 1).trim();
+    if (!name) continue;
+    out.push([keyword, slugifyRoute(name)]);
+  }
+  return out;
+}
+
+/** 把分支名转成能当「出口标识」用的字符串（中文也可以，只是个键） */
+export function slugifyRoute(name: string): string {
+  return name;
+}
+
+/** 简易订阅解析：兼容 RSS 与 Atom 两种常见写法 */
+function parseFeed(xml: string, count: number): { title: string; link: string }[] {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const out: { title: string; link: string }[] = [];
+
+  // RSS：<item><title><link>
+  const rssItems = doc.querySelectorAll('item');
+  if (rssItems.length > 0) {
+    rssItems.forEach((it) => {
+      if (out.length >= count) return;
+      const title = it.querySelector('title')?.textContent?.trim() ?? '';
+      const link = it.querySelector('link')?.textContent?.trim() ?? '';
+      if (title) out.push({ title, link });
+    });
+    return out;
+  }
+
+  // Atom：<entry><title><link href>
+  const entries = doc.querySelectorAll('entry');
+  entries.forEach((it) => {
+    if (out.length >= count) return;
+    const title = it.querySelector('title')?.textContent?.trim() ?? '';
+    const link = it.querySelector('link')?.getAttribute('href') ?? '';
+    if (title) out.push({ title, link });
+  });
+  return out;
+}
+
+/** 去掉重复（忽略大小写版本） */
+function runDedupeIgnoreCase(value: unknown): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of toList(value)) {
+    const key = s.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+/**
+ * 把用户在输入框里写的「\n」「\t」这类写法还原成真正的换行/制表符。
+ *
+ * 为什么需要：输入框里没法直接敲出一个「换行符」，用户只能写 \n 两个字符。
+ * 如果直接拿去当分隔符用，就会永远匹配不到，分隔功能失效。
+ */
+function unescapeUserInput(s: string): string {
+  if (!s.includes('\\')) return s;
+  return s
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\r/g, '\r')
+    .replace(/\\\\/g, '\\');
+}
+
+/**
+ * 算出这个节点该激活哪条出边（出边用 handle id 标识）。
+ *
+ * 返回 undefined 表示「不是分岔节点，所有出边都激活」。
+ * 这样 condition（两条路）和 switch（多条路）共用同一套机制，
+ * 将来再加别的分岔节点也不用改这里的调度逻辑。
+ */
+function pickActiveHandle(kind: NodeKind, output: Record<string, unknown>): string | undefined {
+  if (kind === 'condition') {
+    if (output.branch === undefined) return undefined;
+    return output.branch ? 'true' : 'false';
+  }
+  if (kind === 'switch') {
+    const h = output.handle;
+    return typeof h === 'string' ? h : undefined;
+  }
+  return undefined;
+}
+
+/** 分岔节点在没写明出口时的默认出口 */
+function defaultHandleFor(kind: NodeKind): string {
+  if (kind === 'switch') return 'fallback';
+  return 'true';
+}
+
+/**
+ * 取第一个上游节点产出的「值」。
+ * 数据整理类节点需要拿到上游的结构化结果（而不只是拼好的文字），
+ * 所以这里直接读 ctx 里上游的输出对象。
+ */
+function firstUpstreamValue(
+  nodeId: string,
+  ctx: VarContext,
+  edges: Edge[],
+): unknown {
+  const ups = edges.filter((e) => e.target === nodeId).map((e) => e.source);
+  for (const up of ups) {
+    const out = ctx[up];
+    if (!out || typeof out !== 'object') continue;
+    const rec = out as Record<string, unknown>;
+    // 优先用「条目数组」，其次用正文类字段
+    if (Array.isArray(rec.items)) return rec.items;
+    const v = rec.content ?? rec.text ?? rec.body ?? rec.result ?? rec.answer;
+    if (v !== undefined && v !== '') return v;
+    // summarize 这类只有一个数字结果
+    if (rec.result !== undefined) return rec.result;
+    if (rec.count !== undefined) return rec.count;
+  }
+  return '';
 }
 
 // ============================================================
