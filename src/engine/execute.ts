@@ -42,6 +42,7 @@ import type {
   WaitConfig,
   SwitchConfig,
   StopConfig,
+  WatchConfig,
   NodeKind,
 } from '../types';
 import { useFlowStore } from '../store/flowStore';
@@ -675,10 +676,75 @@ async function executeNode(
       return { text };
     }
 
+    case 'watch': {
+      const c = config as WatchConfig;
+      const up = firstUpstreamNodeId(node.id, edges);
+      if (!up) {
+        throw new Error('把「显示面板」连到想看的那个节点上，它才知道要看什么。');
+      }
+      const out = ctx[up];
+      const rec = (out && typeof out === 'object' ? out : {}) as Record<string, unknown>;
+      const want = (c.want ?? '').trim();
+
+      // 没填就不挑，把整个结果原样显示出来
+      if (!want) {
+        const body = pickPrimaryValue(rec);
+        return { shown: valueToString(body) };
+      }
+
+      // 填了就找这一项：先把「正文/结果」这类外号翻成真实字段名，再直接按原名找
+      const readable = readableFieldName(up, want);
+      const value =
+        rec[readable] !== undefined
+          ? rec[readable]
+          : rec[want] !== undefined
+            ? rec[want]
+            : findFieldLoose(rec, want);
+
+      if (value === undefined) {
+        const keys = Object.keys(rec);
+        throw new Error(
+          keys.length
+            ? `上面那个节点里没有「${want}」这一项。它有的是：${keys.join('、')}。`
+            : `上面那个节点还没跑出结果，暂时看不到「${want}」。`,
+        );
+      }
+      const shown = valueToString(value);
+      // 如果挑出来的正好是一张图，标记一下，卡片和右侧都会把图贴出来
+      const isPic = /^(https?:|data:image\/)/i.test(shown) && /\.(png|jpe?g|gif|webp|svg)|quickchart|chart/i.test(shown);
+      return isPic ? { shown, image: shown } : { shown };
+    }
+
     default:
       // 漏写 case 会在这里编译失败，而不是运行时静默不执行
       return assertNever(kind, 'executeNode');
   }
+}
+
+/** 取第一个上游节点的 id（显示面板靠它知道该看谁） */
+function firstUpstreamNodeId(nodeId: string, edges: Edge[]): string | undefined {
+  return edges.find((e) => e.target === nodeId)?.source;
+}
+
+/**
+ * 把「正文 / 结果 / 图片」这种人话外号翻成上游输出里真实的字段名。
+ * 每个节点在 VAR_FIELD 里都有一个外号，这里按种类反查。
+ */
+function readableFieldName(sourceId: string, want: string): string {
+  const kind = sourceId.split('_')[0] as NodeKind;
+  const alias = VAR_FIELD[kind];
+  if (alias === want) return RAW_VAR_FIELD[kind];
+  return want;
+}
+
+/** 兜底：大小写、空格差异都忽略掉再找一遍 */
+function findFieldLoose(rec: Record<string, unknown>, want: string): unknown {
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_\-.]/g, '');
+  const target = norm(want);
+  for (const [k, v] of Object.entries(rec)) {
+    if (norm(k) === target) return v;
+  }
+  return undefined;
 }
 
 /** 简易休眠，可被「停下」按钮中断 */
