@@ -13,7 +13,38 @@ export type NodeKind =
   | 'merge'
   | 'loop'
   | 'code'
-  | 'output';
+  | 'output'
+  // —— 数据整理（纯函数，不联网）——
+  | 'pick' // 挑出想要的
+  | 'filter' // 分拣
+  | 'sort' // 排序
+  | 'limit' // 只要前几条
+  | 'dedupe' // 去掉重复
+  | 'splitout' // 分成多条
+  | 'aggregate' // 聚成一组
+  | 'summarize' // 算一算
+  | 'renamekeys' // 改字段名
+  // —— 文字处理 ——
+  | 'markdown' // 转换排版
+  | 'html' // 摆弄网页标签
+  | 'xml' // 处理数据格式
+  | 'findreplace' // 查找替换
+  | 'slice' // 切一段出来
+  // —— 日期与编码 ——
+  | 'datetime' // 日期时间
+  | 'crypto' // 加密哈希
+  | 'encode' // 编码转换
+  | 'totp' // 生成动态口令
+  | 'jwt' // 看令牌
+  // —— 网络类（走跨域治理层）——
+  | 'hn' // 看技术热榜
+  | 'rss' // 读订阅
+  | 'chart' // 出图表
+  | 'fact' // 查冷知识
+  // —— 流程控制补充 ——
+  | 'wait' // 等一会儿
+  | 'switch' // 分多条路
+  | 'stop'; // 出错就停
 
 export type RunStatus = 'idle' | 'running' | 'success' | 'error';
 
@@ -112,6 +143,200 @@ export interface OutputConfig {
   template: string; // 用 {{变量}} 拼最终展示文本
 }
 
+// ============================================================
+// 数据整理类配置（对应 n8n 的 Fire 类核心节点）
+// ============================================================
+
+/** 挑出想要的：从上游结果里挑出指定字段 */
+export interface PickConfig {
+  fields: string; // 要保留的字段，逗号分隔
+  missing: 'empty' | 'skip'; // 上游没有这个字段时怎么办
+}
+
+/** 分拣：按关键词筛条目 */
+export interface FilterConfig {
+  keyword: string;
+  mode: 'contains' | 'notContains' | 'startsWith' | 'endsWith';
+}
+
+/** 排序 */
+export interface SortConfig {
+  by: 'text' | 'length' | 'number';
+  order: 'asc' | 'desc';
+}
+
+/** 只要前几条 */
+export interface LimitConfig {
+  count: number;
+  from: 'head' | 'tail';
+}
+
+/** 去掉重复：无配置项，保留空对象结构以便将来扩展 */
+export interface DedupeConfig {
+  ignoreCase: boolean;
+}
+
+/** 分成多条 */
+export interface SplitOutConfig {
+  separator: string; // 为空则按换行
+}
+
+/** 聚成一组 */
+export interface AggregateConfig {
+  separator: string;
+}
+
+/** 算一算 */
+export interface SummarizeConfig {
+  op: 'count' | 'sum' | 'average' | 'max' | 'min' | 'join' | 'unique';
+  separator: string;
+}
+
+/** 改字段名 */
+export interface RenameKeysConfig {
+  mapping: string; // 每行「旧字段=新字段」
+}
+
+// ============================================================
+// 文字处理类配置
+// ============================================================
+
+/** 转换排版：Markdown ↔ HTML */
+export interface MarkdownConfig {
+  text: string; // 支持 {{变量}}
+  direction: 'md2html' | 'html2md';
+}
+
+/** 摆弄网页标签 */
+export interface HtmlConfig {
+  text: string;
+  op: 'toText' | 'extract';
+  selector: string; // extract 模式：要提取什么标签
+  attr: string; // extract 模式：取标签的哪个属性，为空则取文字
+}
+
+/** 处理数据格式：XML ↔ 对象 */
+export interface XmlConfig {
+  text: string;
+  direction: 'xml2obj' | 'obj2xml';
+}
+
+/** 查找替换 */
+export interface FindReplaceConfig {
+  text: string;
+  find: string;
+  replace: string;
+  regex: boolean;
+  all: boolean;
+  ignoreCase: boolean;
+}
+
+/** 切一段出来 */
+export interface SliceConfig {
+  text: string;
+  bySeparator: boolean;
+  separator: string;
+  index: number;
+  from: number;
+  to: number;
+}
+
+// ============================================================
+// 日期与编码类配置
+// ============================================================
+
+/** 日期时间 */
+export interface DateTimeConfig {
+  source: string; // 支持 {{变量}}；op 为 now 时可留空
+  op: 'now' | 'format' | 'add' | 'diff' | 'weekday';
+  format: string;
+  amount: number;
+  unit: 'day' | 'hour' | 'minute' | 'month' | 'year';
+  target: string;
+}
+
+/** 加密哈希 */
+export interface CryptoConfig {
+  text: string;
+  op: 'hash' | 'hmac' | 'random';
+  algorithm: 'SHA-1' | 'SHA-256' | 'SHA-384' | 'SHA-512';
+  secret: string; // hmac 用
+  length: number; // random 用
+  randomKind: 'alnum' | 'hex' | 'number';
+}
+
+/** 编码转换 */
+export interface EncodeConfig {
+  text: string;
+  op: 'b64enc' | 'b64dec' | 'urlenc' | 'urldec' | 'htmlenc' | 'htmldec';
+}
+
+/** 生成动态口令 */
+export interface TotpConfig {
+  secret: string;
+  digits: number;
+  period: number;
+  algorithm: 'SHA-1' | 'SHA-256' | 'SHA-512';
+}
+
+/** 看令牌 */
+export interface JwtConfig {
+  token: string;
+  op: 'decode' | 'sign';
+  secret: string;
+  payload: string;
+}
+
+// ============================================================
+// 网络类配置（全部走跨域治理层）
+// ============================================================
+
+/** 看技术热榜（Hacker News） */
+export interface HnConfig {
+  source: string; // hn-top / hn-new
+  count: number; // 取几条
+}
+
+/** 读订阅（RSS / Atom） */
+export interface RssConfig {
+  url: string;
+  count: number;
+}
+
+/** 出图表（QuickChart，返回图片地址） */
+export interface ChartConfig {
+  chartType: 'bar' | 'line' | 'pie' | 'doughnut';
+  labels: string; // 逗号分隔
+  values: string; // 逗号分隔
+  title: string;
+}
+
+/** 查冷知识 */
+export interface FactConfig {
+  source: string; // catfact / uselessfacts
+}
+
+// ============================================================
+// 流程控制补充
+// ============================================================
+
+/** 等一会儿 */
+export interface WaitConfig {
+  seconds: number;
+}
+
+/** 分多条路：按关键词把流程导向不同分支 */
+export interface SwitchConfig {
+  routes: string; // 每行一条，形如「关键词=分支名」
+  fallback: 'yes' | 'no'; // 都不匹配时是否走「其它」分支
+}
+
+/** 出错就停 */
+export interface StopConfig {
+  message: string; // 要展示的提示语
+  when: 'always' | 'ifEmpty'; // 总是停，还是内容为空时才停
+}
+
 export type NodeConfig =
   | StartConfig
   | LLMConfig
@@ -123,7 +348,33 @@ export type NodeConfig =
   | MergeConfig
   | LoopConfig
   | CodeConfig
-  | OutputConfig;
+  | OutputConfig
+  | PickConfig
+  | FilterConfig
+  | SortConfig
+  | LimitConfig
+  | DedupeConfig
+  | SplitOutConfig
+  | AggregateConfig
+  | SummarizeConfig
+  | RenameKeysConfig
+  | MarkdownConfig
+  | HtmlConfig
+  | XmlConfig
+  | FindReplaceConfig
+  | SliceConfig
+  | DateTimeConfig
+  | CryptoConfig
+  | EncodeConfig
+  | TotpConfig
+  | JwtConfig
+  | HnConfig
+  | RssConfig
+  | ChartConfig
+  | FactConfig
+  | WaitConfig
+  | SwitchConfig
+  | StopConfig;
 
 /** 挂在 React Flow node.data 上的数据 */
 export interface FlowNodeData extends Record<string, unknown> {
@@ -163,7 +414,23 @@ export interface ApiSettings {
   baseURL: string;
   apiKey: string;
   model: string;
+  /**
+   * 网络中转地址。有些网站不允许网页直接访问（浏览器跨域限制），
+   * 填一个中转前缀就能绕过。留空表示「不中转，直接访问」。
+   */
+  proxyURL: string;
 }
+
+/** 节点的功能分组，决定它出现在左侧节点库的哪一栏 */
+export type NodeGroup =
+  | 'input' // 从哪开始
+  | 'ai' // 让 AI 干活
+  | 'net' // 去网上取东西
+  | 'data' // 数据整理
+  | 'text' // 文字处理
+  | 'codec' // 日期与编码
+  | 'flow' // 控制流程
+  | 'output'; // 看结果
 
 /** 节点元信息（用于 Sidebar / 工厂） */
 export interface NodeMeta {
@@ -175,7 +442,9 @@ export interface NodeMeta {
   badge: string; // 节点库小徽标文字
   colorVar: string; // CSS 变量名
   /** 节点库分组，便于在侧栏分区 */
-  group: 'input' | 'ai' | 'action' | 'flow' | 'output';
+  group: NodeGroup;
+  /** 这个节点是否依赖「网络中转」才能访问某些网站（侧栏会打标提示） */
+  needsProxy?: boolean;
   defaultConfig: () => NodeConfig;
 }
 
