@@ -10,6 +10,7 @@ import {
 } from '../fieldDefs';
 import type { FieldDef, NodeConfig, FlowNodeData } from '../types';
 import { TrashIcon, SparkIcon, ArrowLeftIcon } from '../lib/icons';
+import { readableOutput } from '../lib/preview';
 
 /** 上游节点信息：用于「把上游结果放进来」按钮 */
 interface UpstreamRef {
@@ -321,14 +322,8 @@ const STATUS_TEXT: Record<NonNullable<FlowNodeData['run']>['status'], string> = 
 
 /** 把运行结果转成给人看的文字 */
 function prettyOutput(out: Record<string, unknown> | undefined): string {
-  if (out == null) return '（没有内容）';
-  const v = out.content ?? out.text ?? out.result ?? out.body;
-  if (typeof v === 'string') return v;
-  try {
-    return JSON.stringify(out, null, 2);
-  } catch {
-    return String(out);
-  }
+  const text = readableOutput(out);
+  return text || '（没有内容）';
 }
 
 // ============================================================
