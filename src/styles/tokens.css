@@ -46,6 +46,42 @@
   --nt-code: #8be9fd;
   --nt-output: #ff9e64;
 
+  /* —— 数据整理：青蓝→蓝紫，同一族内渐变，成组可辨 —— */
+  --nt-pick: #5ec8d8;
+  --nt-filter: #63b8e8;
+  --nt-sort: #6aa9f0;
+  --nt-limit: #7599e6;
+  --nt-dedupe: #8089dc;
+  --nt-splitout: #8b7ad2;
+  --nt-aggregate: #966bc8;
+  --nt-summarize: #a15cbe;
+  --nt-renamekeys: #ac4db4;
+
+  /* —— 文字处理：暖橙→砖红 —— */
+  --nt-markdown: #e8a04a;
+  --nt-html: #e8955a;
+  --nt-xml: #e88a6a;
+  --nt-findreplace: #e87f7a;
+  --nt-slice: #e8748a;
+
+  /* —— 日期与编码：黄绿→草绿 —— */
+  --nt-datetime: #8fd47a;
+  --nt-crypto: #a3d96a;
+  --nt-encode: #b7de5a;
+  --nt-totp: #cbe34a;
+  --nt-jwt: #dfe83a;
+
+  /* —— 网络：天蓝→靛蓝（与原 tool/fetch 同族）—— */
+  --nt-hn: #58b8f0;
+  --nt-rss: #5fa6ea;
+  --nt-chart: #6b93e0;
+  --nt-fact: #7a80d6;
+
+  /* —— 流程控制：紫粉（与原 condition/merge 同族）—— */
+  --nt-wait: #b98ce0;
+  --nt-switch: #a878d8;
+  --nt-stop: #d06090;
+
   /* —— 字体 —— */
   --font-ui: 'Space Grotesk', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
