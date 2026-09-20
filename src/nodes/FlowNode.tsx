@@ -489,7 +489,6 @@ const ENCODE_OP_TEXT: Record<string, string> = {
 const HN_SOURCE_TEXT: Record<string, string> = {
   'hn-top': '热门榜',
   'hn-new': '最新榜',
-  'hn-best': '精选榜',
 };
 
 const CHART_TYPE_TEXT: Record<string, string> = {
