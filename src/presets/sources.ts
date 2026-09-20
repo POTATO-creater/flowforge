@@ -7,11 +7,11 @@
 // 没有这个头的接口，浏览器一律读不到内容，放进来就是「能配但跑不通」。
 //
 // 实测记录（2026-09）：
-//   ✅ hacker-news.firebaseio.com  → access-control-allow-origin: *
-//   ✅ hn.algolia.com              → *
+//   ✅ hn.algolia.com              → *（HN 榜单走这个，一次拿全）
 //   ✅ catfact.ninja               → *
 //   ✅ uselessfacts.jsph.pl        → *
 //   ✅ quickchart.io               → *
+//   ⚠️ hacker-news.firebaseio.com  → 有跨域头，但实测会间歇性连不上，故不用
 //   ❌ api.open-meteo.com（天气）   → 无该响应头
 //   ❌ date.nager.at（节假日）      → 无
 //   ❌ api.nhtsa.gov               → 无
@@ -29,17 +29,12 @@ export const HN_SOURCES: OpenSource[] = [
   {
     id: 'hn-top',
     name: '热门榜',
-    desc: '当前最热门的帖子',
+    desc: '当前挂在首页的帖子',
   },
   {
     id: 'hn-new',
     name: '最新榜',
     desc: '刚刚发出来的帖子',
-  },
-  {
-    id: 'hn-best',
-    name: '精选榜',
-    desc: '编辑挑选的优质帖子',
   },
 ];
 
@@ -59,16 +54,36 @@ export const FACT_SOURCES: OpenSource[] = [
 
 /**
  * Hacker News 的接口地址。
- * 它是 Firebase 风格的接口：先拿一串编号，再逐个取详情。
+ *
+ * 这里用 Algolia 的搜索接口，而不是官方 Firebase 接口，原因是它更可靠：
+ *   1. 一次请求就拿到全部内容（Firebase 要先拿编号、再逐个取详情，10 条就是 11 次请求）；
+ *   2. 实测响应头带 access-control-allow-origin: *，浏览器能直接读；
+ *   3. Firebase 那个域名在实测中会间歇性连不上。
+ *
+ * Algolia 接口用 tags 区分榜单：
+ *   front_page = 首页热门，story = 全部帖子（按时间倒序即为「最新」）
  */
 export function hnListUrl(source: string): string {
-  const key =
-    source === 'hn-new' ? 'newstories' : source === 'hn-best' ? 'beststories' : 'topstories';
-  return `https://hacker-news.firebaseio.com/v0/${key}.json`;
+  const tag = source === 'hn-new' ? 'story' : 'front_page';
+  const sort = source === 'hn-new' ? 'search_by_date' : 'search';
+  return `https://hn.algolia.com/api/v1/${sort}?tags=${tag}&hitsPerPage=50`;
 }
 
-export function hnItemUrl(id: number): string {
-  return `https://hacker-news.firebaseio.com/v0/item/${id}.json`;
+/** 从 Algolia 的返回里取出帖子列表 */
+export function pickHnList(json: unknown): { title: string; url: string; score: number }[] {
+  if (!json || typeof json !== 'object') return [];
+  const hits = (json as Record<string, unknown>).hits;
+  if (!Array.isArray(hits)) return [];
+  return hits.map((h) => {
+    const r = (h ?? {}) as Record<string, unknown>;
+    const title = typeof r.title === 'string' ? r.title : '';
+    const url =
+      typeof r.url === 'string' && r.url
+        ? r.url
+        : `https://news.ycombinator.com/item?id=${r.objectID ?? ''}`;
+    const score = typeof r.points === 'number' ? r.points : 0;
+    return { title, url, score };
+  });
 }
 
 export function factUrl(source: string): string {
@@ -85,16 +100,4 @@ export function pickFactText(json: unknown): string {
     if (typeof v === 'string') return v;
   }
   return '';
-}
-
-/** 从 Hacker News 的条目里取出标题和链接 */
-export function pickHnItem(json: unknown): { title: string; url: string; score: number } {
-  if (json && typeof json === 'object') {
-    const r = json as Record<string, unknown>;
-    const title = typeof r.title === 'string' ? r.title : '';
-    const url = typeof r.url === 'string' ? r.url : `https://news.ycombinator.com/item?id=${r.id}`;
-    const score = typeof r.score === 'number' ? r.score : 0;
-    return { title, url, score };
-  }
-  return { title: '', url: '', score: 0 };
 }
