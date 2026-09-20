@@ -1,42 +1,24 @@
+import { useState } from 'react';
 import { useFlowStore } from '../store/flowStore';
 import { NODE_METAS } from '../nodeMeta';
-import type {
-  NodeKind,
-  StartConfig,
-  LLMConfig,
-  ToolConfig,
-  ConditionConfig,
-  CodeConfig,
-  OutputConfig,
-  FlowNodeData,
-} from '../types';
-import { TrashIcon } from '../lib/icons';
-
-/** 每个节点类型的主文本字段（用于变量快捷插入）与默认引用字段 */
-const PRIMARY_FIELD: Record<NodeKind, string> = {
-  start: 'text',
-  llm: 'prompt',
-  tool: 'url',
-  condition: 'expression',
-  code: 'expression',
-  output: 'template',
-};
-const VAR_FIELD: Record<NodeKind, string> = {
-  start: 'text',
-  llm: 'content',
-  tool: 'body',
-  condition: 'branch',
-  code: 'result',
-  output: 'text',
-};
+import { NODE_FIELDS, VAR_FIELD, SKILL_TARGETS, primaryFieldOf } from '../fieldDefs';
+import type { FieldDef, NodeConfig } from '../types';
+import { TrashIcon, SparkIcon } from '../lib/icons';
 
 export function Inspector() {
   const selectedId = useFlowStore((s) => s.selectedId);
   const node = useFlowStore((s) => s.nodes.find((n) => n.id === s.selectedId));
   const nodes = useFlowStore((s) => s.nodes);
+  const mode = useFlowStore((s) => s.mode);
+  const skills = useFlowStore((s) => s.skills);
   const updateNodeConfig = useFlowStore((s) => s.updateNodeConfig);
   const renameNode = useFlowStore((s) => s.renameNode);
   const deleteNode = useFlowStore((s) => s.deleteNode);
+  const applySkill = useFlowStore((s) => s.applySkill);
+
+  // 小白模式下「高级设置」手风琴的展开态
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [skillId, setSkillId] = useState('');
 
   if (!node || !selectedId) {
     return (
@@ -50,20 +32,41 @@ export function Inspector() {
     );
   }
 
-  const meta = NODE_METAS[node.data.kind];
-  const cfg = node.data.config;
-  const primary = PRIMARY_FIELD[node.data.kind];
+  const kind = node.data.kind;
+  const meta = NODE_METAS[kind];
+  const spec = NODE_FIELDS[kind];
+  const cfg = node.data.config as unknown as Record<string, unknown>;
+  const primary = primaryFieldOf(kind);
+
+  const basicFields = spec.fields.filter((f) => f.level === 'basic');
+  const advancedFields = spec.fields.filter((f) => f.level === 'advanced');
+  // 大佬模式全部平铺；小白模式基础字段常驻、高级字段折叠
+  const showAdvancedBlock = mode === 'pro' || showAdvanced;
 
   // 可用变量：其它节点
   const vars = nodes
     .filter((n) => n.id !== selectedId)
-    .map((n) => ({ id: n.id, field: VAR_FIELD[n.data.kind] }));
+    .map((n) => ({ id: n.id, field: VAR_FIELD[n.data.kind], label: n.data.label }));
+
+  const setField = (key: string, value: unknown) => {
+    updateNodeConfig(selectedId, { [key]: value } as unknown as Partial<NodeConfig>);
+  };
 
   const insertVar = (id: string, field: string) => {
-    const cur = (cfg as unknown as Record<string, unknown>)[primary];
+    const cur = cfg[primary];
     const text = typeof cur === 'string' ? cur : '';
     const token = `{{${id}.${field}}}`;
-    updateNodeConfig(selectedId, { [primary]: text + (text && !text.endsWith(' ') ? ' ' : '') + token } as unknown as Partial<FlowNodeData['config']>);
+    setField(primary, text + (text && !text.endsWith(' ') ? ' ' : '') + token);
+  };
+
+  // 技能只对含 System Prompt 的节点开放
+  const skillField = SKILL_TARGETS[kind];
+  const applicableSkills = skillField ? skills : [];
+
+  const onApplySkill = (append: boolean) => {
+    if (!skillField || !skillId) return;
+    applySkill(selectedId, skillId, skillField, append);
+    setSkillId('');
   };
 
   return (
@@ -71,6 +74,7 @@ export function Inspector() {
       <div className="inspector__head">
         <div className="inspector__kicker" style={{ color: `var(${meta.colorVar})` }}>
           {meta.name}
+          {mode === 'basic' && <span className="inspector__mode-tag">小白模式</span>}
         </div>
         <div className="inspector__title">
           <input
@@ -87,13 +91,24 @@ export function Inspector() {
       </div>
 
       <div className="inspector__body">
+        {/* 小白模式：一句话说明这个节点干什么 */}
+        {mode === 'basic' && <div className="inspector__plain">{spec.plain}</div>}
+
         {/* 可用变量 */}
         {vars.length > 0 && (
           <div className="field">
-            <span className="field__label">可用变量</span>
+            <span className="field__label">
+              可用变量
+              <span className="field__hint">点击插入到「{labelOf(kind, primary)}」</span>
+            </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {vars.map((v) => (
-                <button key={v.id} className="varhint" onClick={() => insertVar(v.id, v.field)} title="点击插入到主文本">
+                <button
+                  key={v.id}
+                  className="varhint"
+                  onClick={() => insertVar(v.id, v.field)}
+                  title={`来自节点「${v.label}」`}
+                >
                   {`{{${v.id}.${v.field}}}`}
                 </button>
               ))}
@@ -101,7 +116,63 @@ export function Inspector() {
           </div>
         )}
 
-        <ConfigForm kind={node.data.kind} cfg={cfg} onChange={(patch) => updateNodeConfig(selectedId, patch)} />
+        {/* 应用技能：仅含 System Prompt 的节点 */}
+        {applicableSkills.length > 0 && (
+          <div className="field">
+            <span className="field__label">
+              <span className="field__label-inner">
+                <SparkIcon size={13} /> 应用技能
+              </span>
+            </span>
+            <div className="skill-apply">
+              <select className="select" value={skillId} onChange={(e) => setSkillId(e.target.value)}>
+                <option value="">选择一个技能…</option>
+                {applicableSkills.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <div className="skill-apply__btns">
+                <button className="btn" disabled={!skillId} onClick={() => onApplySkill(true)} title="保留原有内容，追加技能">
+                  追加
+                </button>
+                <button className="btn" disabled={!skillId} onClick={() => onApplySkill(false)} title="用技能覆盖原有内容">
+                  覆盖
+                </button>
+              </div>
+            </div>
+            {skillId && <span className="field__hint">{skills.find((s) => s.id === skillId)?.desc}</span>}
+          </div>
+        )}
+
+        {/* 基础字段 */}
+        {basicFields.map((f) => (
+          <FieldInput key={f.key} def={f} value={cfg[f.key]} onChange={(v) => setField(f.key, v)} />
+        ))}
+
+        {/* 高级字段：大佬模式平铺；小白模式折叠 */}
+        {advancedFields.length > 0 &&
+          (mode === 'pro' ? (
+            <>
+              <div className="inspector__divider">高级设置</div>
+              {advancedFields.map((f) => (
+                <FieldInput key={f.key} def={f} value={cfg[f.key]} onChange={(v) => setField(f.key, v)} />
+              ))}
+            </>
+          ) : (
+            <>
+              <button className="accordion" onClick={() => setShowAdvanced((v) => !v)} aria-expanded={showAdvanced}>
+                <span>高级设置</span>
+                <span className="accordion__count">{advancedFields.length} 项</span>
+                <span className={`accordion__caret ${showAdvanced ? 'is-open' : ''}`}>▾</span>
+              </button>
+              {showAdvancedBlock &&
+                advancedFields.map((f) => (
+                  <FieldInput key={f.key} def={f} value={cfg[f.key]} onChange={(v) => setField(f.key, v)} />
+                ))}
+            </>
+          ))}
 
         {/* 运行结果 */}
         {node.data.run && (
@@ -125,107 +196,96 @@ export function Inspector() {
   );
 }
 
-function ConfigForm({
-  kind,
-  cfg,
-  onChange,
-}: {
-  kind: NodeKind;
-  cfg: FlowNodeData['config'];
-  onChange: (patch: Partial<FlowNodeData['config']>) => void;
-}) {
-  switch (kind) {
-    case 'start': {
-      const c = cfg as StartConfig;
-      return (
-        <Field label="用户输入文本" hint="下游用 {{节点ID.text}} 引用">
-          <textarea className="textarea" value={c.text} onChange={(e) => onChange({ text: e.target.value })} />
-        </Field>
-      );
-    }
-    case 'llm': {
-      const c = cfg as LLMConfig;
-      return (
-        <>
-          <Field label="模型" hint="留空则用默认模型">
-            <input className="input input--mono" value={c.model} placeholder="如 gpt-4o-mini" onChange={(e) => onChange({ model: e.target.value })} />
-          </Field>
-          <Field label="System Prompt">
-            <textarea className="textarea" value={c.system} onChange={(e) => onChange({ system: e.target.value })} />
-          </Field>
-          <Field label="User Prompt" hint="支持 {{变量}}">
-            <textarea className="textarea" value={c.prompt} onChange={(e) => onChange({ prompt: e.target.value })} />
-          </Field>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <Field label="温度">
-              <input className="input" type="number" step="0.1" min="0" max="2" value={c.temperature} onChange={(e) => onChange({ temperature: Number(e.target.value) })} />
-            </Field>
-            <Field label="最大 Token">
-              <input className="input" type="number" step="1" min="1" value={c.maxTokens} onChange={(e) => onChange({ maxTokens: Number(e.target.value) })} />
-            </Field>
-          </div>
-        </>
-      );
-    }
-    case 'tool': {
-      const c = cfg as ToolConfig;
-      return (
-        <>
-          <Field label="方法">
-            <select className="select" value={c.method} onChange={(e) => onChange({ method: e.target.value as ToolConfig['method'] })}>
-              <option>GET</option>
-              <option>POST</option>
-              <option>PUT</option>
-              <option>DELETE</option>
-            </select>
-          </Field>
-          <Field label="URL" hint="支持 {{变量}}">
-            <input className="input input--mono" value={c.url} onChange={(e) => onChange({ url: e.target.value })} />
-          </Field>
-          <Field label="请求头" hint="每行 Key: Value">
-            <textarea className="textarea" value={c.headers} placeholder="Authorization: Bearer xxx" onChange={(e) => onChange({ headers: e.target.value })} />
-          </Field>
-          <Field label="请求体 (JSON)" hint="支持 {{变量}}">
-            <textarea className="textarea" value={c.body} onChange={(e) => onChange({ body: e.target.value })} />
-          </Field>
-        </>
-      );
-    }
-    case 'condition': {
-      const c = cfg as ConditionConfig;
-      return (
-        <Field label="条件表达式" hint="JS 布尔表达式；true 走右侧分支，false 走下侧分支">
-          <textarea className="textarea" value={c.expression} onChange={(e) => onChange({ expression: e.target.value })} />
-        </Field>
-      );
-    }
-    case 'code': {
-      const c = cfg as CodeConfig;
-      return (
-        <Field label="代码表达式" hint="形如 return ... ；上游结果在变量 input 上">
-          <textarea className="textarea" value={c.expression} onChange={(e) => onChange({ expression: e.target.value })} />
-        </Field>
-      );
-    }
-    case 'output': {
-      const c = cfg as OutputConfig;
-      return (
-        <Field label="输出模板" hint="用 {{变量}} 拼最终文本">
-          <textarea className="textarea" value={c.template} onChange={(e) => onChange({ template: e.target.value })} />
-        </Field>
-      );
-    }
-  }
+function labelOf(kind: string, key: string): string {
+  const spec = NODE_FIELDS[kind as keyof typeof NODE_FIELDS];
+  return spec?.fields.find((f) => f.key === key)?.label ?? key;
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+// ============================================================
+// 通用字段渲染：由 FieldDef 驱动，新增节点无需改这里
+// ============================================================
+function FieldInput({
+  def,
+  value,
+  onChange,
+}: {
+  def: FieldDef;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const common = {
+    className: def.type === 'code' ? 'textarea input--mono' : def.type === 'text' ? 'input' : 'input',
+  };
+
+  if (def.type === 'number') {
+    return (
+      <div className="field">
+        <span className="field__label">
+          {def.label}
+          {def.hint && <span className="field__hint">{def.hint}</span>}
+        </span>
+        <input
+          className="input"
+          type="number"
+          value={typeof value === 'number' ? value : Number(value ?? 0)}
+          min={def.min}
+          max={def.max}
+          step={def.step}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+      </div>
+    );
+  }
+
+  if (def.type === 'select') {
+    return (
+      <div className="field">
+        <span className="field__label">
+          {def.label}
+          {def.hint && <span className="field__hint">{def.hint}</span>}
+        </span>
+        <select className="select" value={String(value ?? '')} onChange={(e) => onChange(e.target.value)}>
+          {def.options?.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (def.type === 'textarea' || def.type === 'code') {
+    return (
+      <div className="field">
+        <span className="field__label">
+          {def.label}
+          {def.hint && <span className="field__hint">{def.hint}</span>}
+        </span>
+        <textarea
+          className={`textarea${def.type === 'code' ? ' input--mono' : ''}`}
+          value={typeof value === 'string' ? value : ''}
+          placeholder={def.placeholder}
+          spellCheck={false}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="field">
       <span className="field__label">
-        {label}
-        {hint && <span className="field__hint">{hint}</span>}
+        {def.label}
+        {def.hint && <span className="field__hint">{def.hint}</span>}
       </span>
-      {children}
+      <input
+        {...common}
+        value={typeof value === 'string' ? value : ''}
+        placeholder={def.placeholder}
+        spellCheck={false}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
