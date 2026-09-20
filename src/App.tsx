@@ -19,6 +19,8 @@ import { Inspector } from './panels/Inspector';
 import { Toolbar } from './panels/Toolbar';
 import { LogsPanel } from './panels/LogsPanel';
 import { SettingsModal } from './panels/SettingsModal';
+import { PresetsModal } from './panels/PresetsModal';
+import { SkillsModal } from './panels/SkillsModal';
 import { downloadWorkflowJSON, readWorkflowFile } from './lib/persistence';
 import { runWorkflow, stopWorkflow, type LogEntry } from './engine/execute';
 
@@ -29,8 +31,13 @@ const nodeTypes: NodeTypes = { flow: FlowNode };
 const MINIMAP_COLOR: Record<NodeKind, string> = {
   start: '#6ea8fe',
   llm: '#34e3b0',
+  chain: '#7fe3a0',
+  agent: '#9d8cff',
   tool: '#f5b14c',
+  fetch: '#4cc9f0',
   condition: '#c792ea',
+  merge: '#ffd166',
+  loop: '#f78fb3',
   code: '#8be9fd',
   output: '#ff9e64',
 };
@@ -51,6 +58,8 @@ function Editor() {
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -109,13 +118,16 @@ function Editor() {
     async (file: File) => {
       try {
         const wf = await readWorkflowFile(file);
+        if (nodes.length > 0 && !confirm(`导入「${wf.name}」会覆盖当前画布（${nodes.length} 个节点），继续？`)) {
+          return;
+        }
         loadWorkflowJSON(wf);
         setLogs([{ t: now(), tag: 'ok', msg: `已导入工作流：${wf.name}（${wf.nodes.length} 个节点）` }]);
       } catch (err) {
         setLogs([{ t: now(), tag: 'err', msg: `导入失败：${err instanceof Error ? err.message : String(err)}` }]);
       }
     },
-    [loadWorkflowJSON],
+    [loadWorkflowJSON, nodes.length],
   );
 
   const handleClear = useCallback(() => {
@@ -138,6 +150,8 @@ function Editor() {
           onImportFile={handleImportFile}
           onClear={handleClear}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenTemplates={() => setShowTemplates(true)}
+          onOpenSkills={() => setShowSkills(true)}
         />
       </div>
 
@@ -184,13 +198,15 @@ function Editor() {
           {nodes.length === 0 && (
             <div className="canvas-empty">
               <div className="canvas-empty__inner">
-                <h2>从左侧拖入节点开始</h2>
+                <h2>从模板开始，或拖入节点</h2>
                 <p>
-                  一个「开始」节点 + 一个「大模型」节点，连一条线，
+                  点上方「模板」一键载入一个能跑的工作流，
                   <br />
-                  点「运行」即可真实调用模型。
+                  也可以从左侧拖入节点自己搭。
                 </p>
-                <p className="canvas-empty__tip">提示：节点可以从左侧拖拽，也可以双击快速添加</p>
+                <button className="btn btn--primary canvas-empty__cta" onClick={() => setShowTemplates(true)}>
+                  浏览模板
+                </button>
               </div>
             </div>
           )}
@@ -204,6 +220,8 @@ function Editor() {
       </div>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showTemplates && <PresetsModal onClose={() => setShowTemplates(false)} />}
+      {showSkills && <SkillsModal onClose={() => setShowSkills(false)} />}
     </div>
   );
 }
