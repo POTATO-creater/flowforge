@@ -1,7 +1,7 @@
 import { Handle, Position } from '@xyflow/react';
 import type { ReactNode } from 'react';
 import type { RunStatus, RunInfo } from '../types';
-import { readableOutput, clip } from '../lib/preview';
+import { readableOutput, clip, outputImage } from '../lib/preview';
 
 interface SourceHandleDef {
   id: string;
@@ -37,6 +37,8 @@ export function NodeShell({
   const result = run?.status === 'success' ? readableOutput(run.output) : '';
   const { text: shown, clipped } = clip(result, 160);
   const chars = result.length;
+  // 出图这类结果是一张图片，卡片上直接把图贴出来，不用去别处找
+  const pic = run?.status === 'success' ? outputImage(run.output) : '';
 
   return (
     <div className="node" data-status={st} data-selected={selected}>
@@ -74,7 +76,22 @@ export function NodeShell({
                 {clipped && <span className="node__result-more">…（还有更多，点开右侧看全文）</span>}
               </div>
             )}
-            {run.status === 'success' && !shown && (
+
+            {/* 结果是图片就直接贴出来 */}
+            {pic && (
+              <a
+                className="node__result-img"
+                href={pic}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="点一下看大图"
+              >
+                <img src={pic} alt="这次跑出来的图" />
+              </a>
+            )}
+
+            {run.status === 'success' && !shown && !pic && (
               <div className="node__result-text node__result-text--empty">（这次没有产出内容）</div>
             )}
 
