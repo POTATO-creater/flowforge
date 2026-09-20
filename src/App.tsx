@@ -40,6 +40,37 @@ const MINIMAP_COLOR: Record<NodeKind, string> = {
   loop: '#f78fb3',
   code: '#8be9fd',
   output: '#ff9e64',
+  // 数据整理：同一色系（青蓝→蓝紫），互相拉不开但成组可辨
+  pick: '#5ec8d8',
+  filter: '#63b8e8',
+  sort: '#6aa9f0',
+  limit: '#7599e6',
+  dedupe: '#8089dc',
+  splitout: '#8b7ad2',
+  aggregate: '#966bc8',
+  summarize: '#a15cbe',
+  renamekeys: '#ac4db4',
+  // 文字处理：暖橙→砖红
+  markdown: '#e8a04a',
+  html: '#e8955a',
+  xml: '#e88a6a',
+  findreplace: '#e87f7a',
+  slice: '#e8748a',
+  // 日期与编码：绿色系
+  datetime: '#8fd47a',
+  crypto: '#a3d96a',
+  encode: '#b7de5a',
+  totp: '#cbe34a',
+  jwt: '#dfe83a',
+  // 网络
+  hn: '#58b8f0',
+  rss: '#5fa6ea',
+  chart: '#6b93e0',
+  fact: '#7a80d6',
+  // 流程控制
+  wait: '#b98ce0',
+  switch: '#a878d8',
+  stop: '#d06090',
 };
 
 function Editor() {
