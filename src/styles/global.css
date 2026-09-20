@@ -811,7 +811,7 @@ select {
   gap: var(--sp-2);
   padding: var(--sp-3);
   border-radius: var(--r-node);
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-hair);
   background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 .upstream__label {
@@ -833,7 +833,7 @@ select {
   gap: 5px;
   padding: 5px 10px;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-hair);
   background: var(--bg-panel);
   color: var(--text-primary);
   font-size: var(--fs-xs);
