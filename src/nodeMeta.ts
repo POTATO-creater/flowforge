@@ -534,6 +534,18 @@ export const NODE_METAS: Record<NodeKind, NodeMeta> = {
     group: 'flow',
     defaultConfig: () => ({ message: '内容不符合要求，先停一下。', when: 'always' as const }),
   },
+
+  watch: {
+    kind: 'watch',
+    name: '显示面板',
+    desc: '连到哪儿就看哪儿',
+    plain:
+      '把它接到任意一个节点上，它就会把那个节点跑出来的某一项直接显示在卡片上。用来盯住流程中间的某个数，不用一路看到最后。',
+    badge: '显',
+    colorVar: '--nt-watch',
+    group: 'output',
+    defaultConfig: () => ({ want: '', note: '' }),
+  },
 };
 
 /** 侧栏分区的展示顺序与标题（按功能分组） */
