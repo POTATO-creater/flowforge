@@ -9,8 +9,7 @@ import {
   type NodeChange,
   type EdgeChange,
 } from '@xyflow/react';
-import type {
-  FlowNodeData,
+import type { FlowNodeData,
   NodeConfig,
   NodeKind,
   RunInfo,
@@ -20,6 +19,7 @@ import type {
   WorkflowJSON,
 } from '../types';
 import { NODE_METAS } from '../nodeMeta';
+import { NODE_FIELDS, VAR_FIELD, primaryFieldOf } from '../fieldDefs';
 import { BUILTIN_SKILLS } from '../presets/skills';
 
 const SETTINGS_KEY = 'flowforge.settings';
@@ -163,13 +163,16 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   onNodesChange: (c) => set({ nodes: applyNodeChanges(c, get().nodes) as Node<FlowNodeData>[] }),
   onEdgesChange: (c) => set({ edges: applyEdgeChanges(c, get().edges) }),
-  onConnect: (c) =>
-    set({
-      edges: addEdge(
-        { ...c, id: `e_${c.source}_${c.target}_${c.sourceHandle ?? 'o'}` },
-        get().edges,
-      ),
-    }),
+  onConnect: (c) => {
+    const nextEdges = addEdge(
+      { ...c, id: `e_${c.source}_${c.target}_${c.sourceHandle ?? 'o'}` },
+      get().edges,
+    );
+    set({ edges: nextEdges });
+    // 刚连上就把上游结果自动填进目标节点的主输入框（仅当它是空的）
+    autofillFromUpstream(c.target);
+    get().persist();
+  },
 
   addNodeAt: (kind, position) => {
     const meta = NODE_METAS[kind];
@@ -178,7 +181,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       id,
       type: 'flow',
       position,
-      data: { kind, label: meta.name, config: meta.defaultConfig() },
+      data: { kind, label: uniqueLabel(meta.name, get().nodes), config: meta.defaultConfig() },
     };
     set({ nodes: [...get().nodes, node], selectedId: id });
     get().persist();
@@ -196,8 +199,19 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   },
 
   renameNode: (id, label) => {
+    const prev = get().nodes.find((n) => n.id === id)?.data.label;
+    const next = label;
+
     set({
-      nodes: get().nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, label } } : n)),
+      nodes: get().nodes.map((n) => {
+        if (n.id === id) return { ...n, data: { ...n.data, label: next } };
+        // 节点改名后，其它节点里 {{旧名.结果名}} 的引用要跟着改，
+        // 否则引用会失效。这是中文变量名方案的必要配套。
+        if (prev && prev !== next) {
+          return { ...n, data: { ...n.data, config: renameRefs(n.data.config, prev, next) } };
+        }
+        return n;
+      }),
     });
     get().persist();
   },
@@ -326,3 +340,72 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     }
   },
 }));
+
+// ============================================================
+// 节点改名时，同步更新其它节点里对它的中文引用 {{旧名.结果名}}
+// ============================================================
+function renameRefs(config: NodeConfig, from: string, to: string): NodeConfig {
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // 匹配 {{旧名}} 与 {{旧名.结果名}}
+  const re = new RegExp(`\\{\\{\\s*${esc(from)}(?=\\s*[.}])`, 'g');
+  const out: Record<string, unknown> = { ...(config as unknown as Record<string, unknown>) };
+  let changed = false;
+  for (const [k, v] of Object.entries(out)) {
+    if (typeof v !== 'string' || !v.includes('{{')) continue;
+    const nextV = v.replace(re, `{{${to}`);
+    if (nextV !== v) {
+      out[k] = nextV;
+      changed = true;
+    }
+  }
+  return (changed ? out : config) as unknown as NodeConfig;
+}
+
+// ============================================================
+// 节点名去重：同名节点会导致中文引用歧义，自动加序号
+// ============================================================
+function uniqueLabel(base: string, nodes: Node<FlowNodeData>[]): string {
+  const used = new Set(nodes.map((n) => n.data.label));
+  if (!used.has(base)) return base;
+  let i = 2;
+  while (used.has(`${base}${i}`)) i++;
+  return `${base}${i}`;
+}
+
+// ============================================================
+// 刚连上上游时，自动把上游结果填进目标节点的主输入框
+// （仅当该框为空，避免覆盖用户已经写好的内容）
+// ============================================================
+function autofillFromUpstream(targetId: string) {
+  const store = useFlowStore.getState();
+  const target = store.nodes.find((n) => n.id === targetId);
+  if (!target) return;
+
+  const primaryKey = primaryFieldOf(target.data.kind);
+  const cfg = target.data.config as unknown as Record<string, unknown>;
+  const cur = cfg[primaryKey];
+  if (typeof cur === 'string' && cur.trim() !== '') return;
+
+  // 取第一个上游
+  const edge = store.edges.find((e) => e.target === targetId);
+  if (!edge) return;
+  const src = store.nodes.find((n) => n.id === edge.source);
+  if (!src) return;
+
+  const resultName = NODE_FIELDS[src.data.kind].resultName ?? VAR_FIELD[src.data.kind];
+  const token = `{{${src.data.label}.${resultName}}}`;
+
+  useFlowStore.setState({
+    nodes: store.nodes.map((n) =>
+      n.id === targetId
+        ? {
+            ...n,
+            data: {
+              ...n.data,
+              config: { ...n.data.config, [primaryKey]: token } as NodeConfig,
+            },
+          }
+        : n,
+    ),
+  });
+}
