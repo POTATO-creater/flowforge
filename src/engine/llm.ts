@@ -10,20 +10,84 @@ export interface LLMResult {
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
 }
 
+/** 对话消息（含 function calling 所需的 tool 角色） */
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+/** OpenAI tools 数组中的单个工具定义 */
+export interface ToolSpec {
+  type: 'function';
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+export interface LLMOptions {
+  model: string;
+  system?: string;
+  prompt?: string;
+  temperature?: number;
+  maxTokens?: number;
+  /** 直接给定完整消息列表时优先使用（工具调用多轮需要） */
+  messages?: ChatMessage[];
+  /** function calling：可用工具 */
+  tools?: ToolSpec[];
+}
+
+export interface LLMReply extends LLMResult {
+  /** 模型请求调用的工具（若有） */
+  toolCalls?: ToolCall[];
+  /** 原始 finish_reason，用于判断是否要继续循环 */
+  finishReason?: string;
+}
+
 /**
  * 调用一次 chat completion。非流式，保证日志清晰。
+ * 支持 system/prompt 简写，也支持直接传 messages（工具调用用）。
  */
 export async function callLLM(
   settings: ApiSettings,
-  opts: { model: string; system: string; prompt: string; temperature: number; maxTokens: number },
+  opts: LLMOptions,
   signal?: AbortSignal,
-): Promise<LLMResult> {
+): Promise<LLMReply> {
   const base = settings.baseURL.replace(/\/+$/, '');
   const url = `${base}/chat/completions`;
   const model = opts.model || settings.model;
   if (!settings.apiKey) {
     throw new Error('未配置 API Key，请先在「设置」中填写');
   }
+
+  const messages: ChatMessage[] =
+    opts.messages ??
+    [
+      ...(opts.system ? [{ role: 'system' as const, content: opts.system }] : []),
+      { role: 'user' as const, content: opts.prompt ?? '' },
+    ];
+
+  const payload: Record<string, unknown> = {
+    model,
+    messages,
+    temperature: opts.temperature ?? 0.7,
+  };
+  // 工具调用场景下部分端点不接受 max_tokens，故仅在显式给出时带上
+  if (opts.maxTokens != null) payload.max_tokens = opts.maxTokens;
+  if (opts.tools?.length) {
+    payload.tools = opts.tools;
+    payload.tool_choice = 'auto';
+  }
+
   const resp = await fetch(url, {
     method: 'POST',
     signal,
@@ -31,15 +95,7 @@ export async function callLLM(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${settings.apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      temperature: opts.temperature,
-      max_tokens: opts.maxTokens,
-      messages: [
-        ...(opts.system ? [{ role: 'system', content: opts.system }] : []),
-        { role: 'user', content: opts.prompt },
-      ],
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!resp.ok) {
@@ -54,10 +110,13 @@ export async function callLLM(
   }
 
   const data = await resp.json();
-  const content = data?.choices?.[0]?.message?.content ?? '';
+  const choice = data?.choices?.[0];
+  const msg = choice?.message;
   return {
-    content,
+    content: typeof msg?.content === 'string' ? msg.content : '',
     model: data?.model ?? model,
     usage: data?.usage,
+    toolCalls: Array.isArray(msg?.tool_calls) ? (msg.tool_calls as ToolCall[]) : undefined,
+    finishReason: choice?.finish_reason,
   };
 }
