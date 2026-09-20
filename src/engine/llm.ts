@@ -66,7 +66,7 @@ export async function callLLM(
   const url = `${base}/chat/completions`;
   const model = opts.model || settings.model;
   if (!settings.apiKey) {
-    throw new Error('未配置 API Key，请先在「设置」中填写');
+    throw new Error('还没填 AI 的密钥，去右上角设置里填一下（形如 sk- 开头那串）。');
   }
 
   const messages: ChatMessage[] =
@@ -106,7 +106,7 @@ export async function callLLM(
     } catch {
       /* ignore */
     }
-    throw new Error(`模型请求失败：${detail}`);
+    throw new Error(`问 AI 失败了：${detail}`);
   }
 
   const data = await resp.json();

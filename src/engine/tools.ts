@@ -48,7 +48,7 @@ export async function callTool(
   signal?: AbortSignal,
 ): Promise<ToolResult> {
   const url = interpolate(cfg.url, ctx);
-  if (!url) throw new Error('工具节点未配置 URL');
+  if (!url) throw new Error('这个节点还没填要访问的网址。');
 
   const headers = parseHeaders(interpolate(cfg.headers, ctx));
   let body: string | undefined;
@@ -97,7 +97,7 @@ export async function fetchPage(
   signal?: AbortSignal,
 ): Promise<FetchResult> {
   const target = interpolate(opts.url, ctx).trim();
-  if (!target) throw new Error('网页抓取节点未配置网址');
+  if (!target) throw new Error('这个节点还没填要读的网址。');
 
   const proxy = interpolate(opts.proxy, ctx).trim();
   // proxy 为空则直连（仅在同源或对方开放 CORS 时可行）
@@ -119,7 +119,7 @@ export async function fetchPage(
     });
     const raw = await resp.text();
     if (!resp.ok) {
-      throw new Error(`抓取失败：${resp.status} ${resp.statusText}`);
+      throw new Error(`没能读到这个网页：${resp.status} ${resp.statusText}`);
     }
     const content = opts.extract === 'raw' ? raw : opts.extract === 'text' ? stripHtml(raw) : raw;
     return {
@@ -130,7 +130,7 @@ export async function fetchPage(
     };
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
-      throw new Error(`抓取超时（${opts.timeout} 秒）：${target}`);
+      throw new Error(`等太久了（超过 ${opts.timeout} 秒）还没读到：${target}`);
     }
     throw e;
   } finally {
