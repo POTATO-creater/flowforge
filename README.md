@@ -8,8 +8,18 @@
 npm install
 npm run dev        # 本地开发，访问 http://localhost:5173
 npm run build      # 类型检查 + 生产构建
-npm run preview    # 预览构建产物（可静态部署）
+npm run preview    # 预览构建产物，访问 http://localhost:5173
 ```
+
+## 在线访问
+
+仓库已配置 GitHub Actions 自动部署到 **GitHub Pages**：推送到 `main` 即自动构建发布。
+
+> 首次使用需在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**，
+> 之后可在 **Actions** 页签查看部署进度，站点地址为 `https://<你的用户名>.github.io/flowforge/`。
+
+由于 Pages 项目站点位于子路径，CI 使用 `vite build --mode pages` 让静态资源带上 `/flowforge/` 前缀；
+本地开发与默认构建仍为根路径，无需任何额外配置。
 
 ## 配置 API
 
@@ -58,6 +68,16 @@ npm run preview    # 预览构建产物（可静态部署）
 ## 技术栈
 
 Vite + React 18 + TypeScript + React Flow（`@xyflow/react`）+ Zustand，纯前端静态可部署。
+
+## 常见问题
+
+**页面布局错乱、按钮点不动？**
+确认 `src/App.tsx` 中三个面板分别被 `.app__toolbar` / `.app__sidebar` / `.app__inspector` 包裹——
+`.app` 的三栏网格依赖这些类名承载 `grid-area`，缺失会导致整个布局塌陷。修改布局时请一并检查。
+
+**字体与系统不一致？**
+界面字体通过 Google Fonts 异步加载（非阻塞）。离线或内网环境下会回退到
+`PingFang SC` / `Microsoft YaHei` / `system-ui`，不影响功能。
 
 ## 已知限制
 
