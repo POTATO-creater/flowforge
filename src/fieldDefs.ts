@@ -50,6 +50,7 @@ export const VAR_FIELD: Record<NodeKind, string> = {
   wait: '内容',
   switch: '判断',
   stop: '内容',
+  watch: '显示',
 };
 
 /**
@@ -95,6 +96,7 @@ export const RAW_VAR_FIELD: Record<NodeKind, string> = {
   wait: 'text',
   switch: 'branch',
   stop: 'text',
+  watch: 'shown',
 };
 
 /** 节点内可用于「套用一个技能」的字段（含长期要求的节点） */
@@ -1430,6 +1432,33 @@ const FLOW_FIELDS: Partial<Record<NodeKind, NodeFieldSpec>> = {
       },
     ],
   },
+
+  watch: {
+    plain:
+      '把它接到任意一个节点上，它就把那个节点跑出来的某一项直接显示出来。想看哪一项就填哪一项的名字。',
+    resultName: '显示',
+    fields: [
+      {
+        key: 'want',
+        label: '想看哪一项',
+        type: 'text',
+        level: 'basic',
+        primary: true,
+        placeholder: '例如：正文、结果、图片',
+        hint: '填上面那个节点里的某一项名字；留空就把它的全部内容显示出来',
+        vars: false,
+      },
+      {
+        key: 'note',
+        label: '面板上写个小标题',
+        type: 'text',
+        level: 'advanced',
+        placeholder: '例如：这一步的中间成果',
+        hint: '只是给你自己看的备注，不影响结果',
+        vars: false,
+      },
+    ],
+  },
 };
 
 /**
@@ -1448,6 +1477,7 @@ export const NODE_FIELDS = Object.assign(
   NET_FIELDS,
   FLOW_FIELDS,
 ) as Record<NodeKind, NodeFieldSpec>;
+
 export function primaryFieldOf(kind: NodeKind): string {
   const spec = NODE_FIELDS[kind];
   const found = spec.fields.find((f) => f.primary);
