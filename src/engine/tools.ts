@@ -1,14 +1,22 @@
 // ============================================================
 // HTTP 工具节点：真实发起 fetch 请求
+//
+// 所有外部访问统一走 lib/net.ts 的 fetchSmart，
+// 由它负责「直连失败就自动改走中转」以及把跨域错误翻成人话。
 // ============================================================
 import type { ToolConfig } from '../types';
 import { interpolate } from './vars';
 import type { VarContext } from './vars';
+import { fetchSmart, type CorsMode } from '../lib/net';
 
 export interface ToolResult {
   status: number;
   body: string;
   json?: unknown; // 若响应为合法 JSON 则解析
+  /** 是否走了中转 */
+  viaProxy?: boolean;
+  /** 走了中转的原因说明 */
+  note?: string;
 }
 
 function parseHeaders(raw: string): Record<string, string> {
@@ -30,22 +38,21 @@ export async function requestRaw(
   headers: Record<string, string> = {},
   body?: string,
   signal?: AbortSignal,
+  proxy?: string,
+  cors: CorsMode = 'either',
 ): Promise<ToolResult> {
-  const resp = await fetch(url, { method, headers, body, signal });
-  const text = await resp.text();
-  let json: unknown;
-  try {
-    json = text ? JSON.parse(text) : undefined;
-  } catch {
-    json = undefined;
+  const r = await fetchSmart({ url, method, headers, body, signal, cors }, proxy);
+  if (r.status >= 400) {
+    throw new Error(`对方返回了错误：${r.status}。地址：${url}`);
   }
-  return { status: resp.status, body: text, json };
+  return { status: r.status, body: r.text, json: r.json, viaProxy: r.viaProxy, note: r.note };
 }
 
 export async function callTool(
   cfg: ToolConfig,
   ctx: VarContext,
   signal?: AbortSignal,
+  proxy?: string,
 ): Promise<ToolResult> {
   const url = interpolate(cfg.url, ctx);
   if (!url) throw new Error('这个节点还没填要访问的网址。');
@@ -55,7 +62,7 @@ export async function callTool(
   if (cfg.method !== 'GET' && cfg.method !== 'DELETE' && cfg.body.trim()) {
     body = interpolate(cfg.body, ctx);
   }
-  return requestRaw(url, cfg.method, headers, body, signal);
+  return requestRaw(url, cfg.method, headers, body, signal, proxy);
 }
 
 // ============================================================
@@ -68,6 +75,8 @@ export interface FetchResult {
   content: string;
   url: string;
   status: number;
+  viaProxy?: boolean;
+  note?: string;
 }
 
 /** 去 HTML 标签，压掉多余空白 */
@@ -92,7 +101,16 @@ function pickTitle(md: string): string {
 }
 
 export async function fetchPage(
-  opts: { url: string; proxy: string; extract: 'markdown' | 'text' | 'raw'; headers: string; timeout: number },
+  opts: {
+    url: string;
+    proxy: string;
+    extract: 'markdown' | 'text' | 'raw';
+    headers: string;
+    timeout: number;
+    /** 用户设置的全局中转地址 */
+    netProxy?: string;
+    cors?: CorsMode;
+  },
   ctx: VarContext,
   signal?: AbortSignal,
 ): Promise<FetchResult> {
@@ -100,41 +118,33 @@ export async function fetchPage(
   if (!target) throw new Error('这个节点还没填要读的网址。');
 
   const proxy = interpolate(opts.proxy, ctx).trim();
-  // proxy 为空则直连（仅在同源或对方开放 CORS 时可行）
-  const endpoint = proxy ? `${proxy.replace(/\/+$/, '')}/${target}` : target;
-
+  // 节点自己填了代理就直接用；否则交给 fetchSmart 按全局中转设置处理
+  const cors: CorsMode = opts.cors ?? (proxy ? 'proxy' : 'either');
   const headers = parseHeaders(interpolate(opts.headers, ctx));
 
-  const timeoutMs = Math.max(5, Number(opts.timeout) || 30) * 1000;
-  const timer = new AbortController();
-  const onAbort = () => timer.abort();
-  signal?.addEventListener('abort', onAbort);
-  const to = setTimeout(() => timer.abort(), timeoutMs);
-
-  try {
-    const resp = await fetch(endpoint, {
+  const r = await fetchSmart(
+    {
+      url: target,
       method: 'GET',
       headers,
-      signal: timer.signal,
-    });
-    const raw = await resp.text();
-    if (!resp.ok) {
-      throw new Error(`没能读到这个网页：${resp.status} ${resp.statusText}`);
-    }
-    const content = opts.extract === 'raw' ? raw : opts.extract === 'text' ? stripHtml(raw) : raw;
-    return {
-      title: pickTitle(raw),
-      content,
-      url: target,
-      status: resp.status,
-    };
-  } catch (e) {
-    if (e instanceof Error && e.name === 'AbortError') {
-      throw new Error(`等太久了（超过 ${opts.timeout} 秒）还没读到：${target}`);
-    }
-    throw e;
-  } finally {
-    clearTimeout(to);
-    signal?.removeEventListener('abort', onAbort);
+      timeout: Math.max(5, Number(opts.timeout) || 30),
+      signal,
+      cors,
+    },
+    proxy || opts.netProxy,
+  );
+
+  if (r.status >= 400) {
+    throw new Error(`没能读到这个网页：${r.status}。地址：${target}`);
   }
+  const raw = r.text;
+  const content = opts.extract === 'raw' ? raw : opts.extract === 'text' ? stripHtml(raw) : raw;
+  return {
+    title: pickTitle(raw),
+    content,
+    url: target,
+    status: r.status,
+    viaProxy: r.viaProxy,
+    note: r.note,
+  };
 }
