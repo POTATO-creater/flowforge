@@ -1249,7 +1249,6 @@ const NET_FIELDS: Partial<Record<NodeKind, NodeFieldSpec>> = {
         options: [
           { value: 'hn-top', label: '热门榜' },
           { value: 'hn-new', label: '最新榜' },
-          { value: 'hn-best', label: '精选榜' },
         ],
         vars: false,
       },
