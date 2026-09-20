@@ -29,16 +29,16 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
   switch (data.kind) {
     case 'start':
       return (
-        <NodeShell {...shell('start')} hasTarget={false}>
-          <div className="node__preview">{S(cfg, 'text') || '（空输入）'}</div>
+        <NodeShell {...shell('输入')} hasTarget={false}>
+          <div className="node__preview">{S(cfg, 'text') || '（还没写内容）'}</div>
         </NodeShell>
       );
 
     case 'llm':
       return (
-        <NodeShell {...shell('llm')}>
+        <NodeShell {...shell('AI')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">{S(cfg, 'model') || '默认模型'}</span>
+            <span className="tag">{S(cfg, 'model') || '默认的 AI'}</span>
           </div>
           <div className="node__preview">{S(cfg, 'prompt')}</div>
         </NodeShell>
@@ -46,11 +46,11 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
 
     case 'chain':
       return (
-        <NodeShell {...shell('cot')}>
+        <NodeShell {...shell('想')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">{S(cfg, 'steps') || '3'} 步</span>
+            <span className="tag">分 {S(cfg, 'steps') || '3'} 步想</span>
             <span className="tag" style={{ marginLeft: 4 }}>
-              {S(cfg, 'model') || '默认模型'}
+              {S(cfg, 'model') || '默认的 AI'}
             </span>
           </div>
           <div className="node__preview">{S(cfg, 'question')}</div>
@@ -59,11 +59,11 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
 
     case 'agent':
       return (
-        <NodeShell {...shell('bot')}>
+        <NodeShell {...shell('查')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">工具调用</span>
+            <span className="tag">会用工具</span>
             <span className="tag" style={{ marginLeft: 4 }}>
-              ≤{S(cfg, 'maxRounds') || '3'} 轮
+              最多 {S(cfg, 'maxRounds') || '3'} 次
             </span>
           </div>
           <div className="node__preview">{S(cfg, 'prompt')}</div>
@@ -72,7 +72,7 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
 
     case 'tool':
       return (
-        <NodeShell {...shell('api')}>
+        <NodeShell {...shell('网')}>
           <div style={{ marginBottom: 6 }}>
             <span className="tag">{S(cfg, 'method')}</span>
           </div>
@@ -82,9 +82,9 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
 
     case 'fetch':
       return (
-        <NodeShell {...shell('web')}>
+        <NodeShell {...shell('读')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">{S(cfg, 'extract') || 'markdown'}</span>
+            <span className="tag">抓成文字</span>
           </div>
           <div className="node__preview">{S(cfg, 'url')}</div>
         </NodeShell>
@@ -93,38 +93,38 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
     case 'condition':
       return (
         <NodeShell
-          {...shell('if', [
+          {...shell('岔', [
             { id: 'true', top: '34%' },
             { id: 'false', top: '66%' },
           ])}
         >
           <div className="node__preview">{S(cfg, 'expression')}</div>
           <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-            <span style={{ color: 'var(--st-success)' }}>→ true</span>
-            <span style={{ color: 'var(--st-error)' }}>→ false</span>
+            <span style={{ color: 'var(--st-success)' }}>→ 成立走这</span>
+            <span style={{ color: 'var(--st-error)' }}>→ 不成立走这</span>
           </div>
         </NodeShell>
       );
 
     case 'merge':
       return (
-        <NodeShell {...shell('mrg')}>
+        <NodeShell {...shell('合')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">{S(cfg, 'mode') || 'concat'}</span>
+            <span className="tag">合成一份</span>
           </div>
           <div className="node__preview" style={{ color: 'var(--text-muted)' }}>
-            汇聚所有上游输出
+            把前面几条线的结果合在一起
           </div>
         </NodeShell>
       );
 
     case 'loop':
       return (
-        <NodeShell {...shell('loop')}>
+        <NodeShell {...shell('段')}>
           <div style={{ marginBottom: 6 }}>
-            <span className="tag">≤{S(cfg, 'maxItems') || '10'} 项</span>
+            <span className="tag">最多 {S(cfg, 'maxItems') || '10'} 段</span>
             <span className="tag" style={{ marginLeft: 4 }}>
-              {S(cfg, 'model') || '默认模型'}
+              {S(cfg, 'model') || '默认的 AI'}
             </span>
           </div>
           <div className="node__preview">{S(cfg, 'itemPrompt')}</div>
@@ -133,14 +133,14 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
 
     case 'code':
       return (
-        <NodeShell {...shell('js')}>
+        <NodeShell {...shell('码')}>
           <div className="node__preview">{S(cfg, 'expression')}</div>
         </NodeShell>
       );
 
     case 'output':
       return (
-        <NodeShell {...shell('out', [])}>
+        <NodeShell {...shell('果', [])}>
           <div className="node__preview">{S(cfg, 'template')}</div>
         </NodeShell>
       );
