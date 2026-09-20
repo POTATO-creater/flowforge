@@ -71,6 +71,8 @@ const MINIMAP_COLOR: Record<NodeKind, string> = {
   wait: '#b98ce0',
   switch: '#a878d8',
   stop: '#d06090',
+  // 看结果
+  watch: '#ffb877',
 };
 
 function Editor() {
@@ -219,7 +221,7 @@ function Editor() {
             fitView
             fitViewOptions={{ padding: 0.35, maxZoom: 1, minZoom: 0.4 }}
             proOptions={{ hideAttribution: true }}
-            defaultEdgeOptions={{ type: 'smoothstep' }}
+            defaultEdgeOptions={{ type: 'default' }}
             minZoom={0.2}
             maxZoom={2.5}
           >
