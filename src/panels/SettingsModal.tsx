@@ -17,24 +17,30 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal__head">
-          API 设置
+          AI 接口设置
           <button className="btn btn--icon btn--ghost" onClick={onClose} aria-label="关闭">
             <CloseIcon />
           </button>
         </div>
         <div className="modal__body">
           <div className="field">
-            <span className="field__label">API Base URL</span>
+            <span className="field__label">
+              服务地址
+              <span className="field__hint">从你用的 AI 服务商那里复制的「接口地址」</span>
+            </span>
             <input
               className="input input--mono"
               value={draft.baseURL}
               onChange={(e) => setDraft({ ...draft, baseURL: e.target.value })}
               placeholder="https://api.openai.com/v1"
             />
-            <span className="field__hint">OpenAI 兼容端点，如 DeepSeek / GLM / 通义均适用</span>
+            <span className="field__hint">DeepSeek、智谱、通义等都能用，填它们给的地址就行</span>
           </div>
           <div className="field">
-            <span className="field__label">API Key</span>
+            <span className="field__label">
+              密钥
+              <span className="field__hint">服务商给你的那串密码，形如 sk- 开头</span>
+            </span>
             <input
               className="input input--mono"
               type="password"
@@ -42,10 +48,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })}
               placeholder="sk-..."
             />
-            <span className="field__hint">仅保存在本机浏览器 localStorage，不会上传</span>
+            <span className="field__hint">只存在你自己电脑的浏览器里，不会传到别处</span>
           </div>
           <div className="field">
-            <span className="field__label">默认模型</span>
+            <span className="field__label">
+              默认用哪个 AI
+              <span className="field__hint">节点里不单独改的话，就用这个</span>
+            </span>
             <input
               className="input input--mono"
               value={draft.model}
@@ -56,7 +65,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="modal__foot">
           <button className="btn btn--ghost" onClick={onClose}>
-            取消
+            算了
           </button>
           <button className="btn btn--primary" onClick={save}>
             保存

@@ -52,11 +52,11 @@ export function Toolbar({
       <div className="toolbar__group">
         {running ? (
           <button className="btn btn--danger" onClick={onStop}>
-            <StopIcon /> 停止
+            <StopIcon /> 停下
           </button>
         ) : (
           <button className="btn btn--primary" onClick={onRun}>
-            <PlayIcon /> 运行
+            <PlayIcon /> 跑一遍
           </button>
         )}
       </div>
@@ -66,38 +66,38 @@ export function Toolbar({
         <button
           className={`mode-switch__btn ${mode === 'basic' ? 'is-active' : ''}`}
           onClick={() => setMode('basic')}
-          title="隐藏高级设置，只保留核心选项"
+          title="只留最必要的设置，省心"
         >
-          小白模式
+          简单点
         </button>
         <button
           className={`mode-switch__btn ${mode === 'pro' ? 'is-active' : ''}`}
           onClick={() => setMode('pro')}
-          title="展示全部可调参数"
+          title="把所有能调的选项都摊开"
         >
-          大佬模式
+          全都要
         </button>
       </div>
 
       <div className="toolbar__spacer" />
 
       <div className="toolbar__group">
-        <button className="btn" onClick={onOpenTemplates} title="从模板快速创建">
-          <TemplatesIcon /> 模板
+        <button className="btn" onClick={onOpenTemplates} title="用现成的例子开始">
+          <TemplatesIcon /> 现成的
         </button>
         <button className="btn" onClick={onOpenSkills} title="技能库 / 导入技能">
           <SkillIcon /> 技能
         </button>
-        <button className="btn" onClick={onExportJson} title="导出工作流 JSON">
-          <DownloadIcon /> 导出
+        <button className="btn" onClick={onExportJson} title="把工作流存成文件">
+          <DownloadIcon /> 存下来
         </button>
-        <button className="btn" onClick={() => fileRef.current?.click()} title="导入工作流 JSON">
-          <UploadIcon /> 导入
+        <button className="btn" onClick={() => fileRef.current?.click()} title="从文件载入工作流">
+          <UploadIcon /> 打开
         </button>
-        <button className="btn" onClick={() => exportCanvasPng(getNodes())} title="导出画布为 PNG">
-          <ImageIcon /> 图片
+        <button className="btn" onClick={() => exportCanvasPng(getNodes())} title="把画布存成图片">
+          <ImageIcon /> 截图
         </button>
-        <button className="btn btn--icon" onClick={onOpenSettings} title="API 设置">
+        <button className="btn btn--icon" onClick={onOpenSettings} title="AI 接口设置">
           <SettingsIcon />
         </button>
         <button className="btn btn--icon btn--danger" onClick={onClear} title="清空画布">
