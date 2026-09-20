@@ -21,20 +21,33 @@ import type { FlowNodeData,
 import { NODE_METAS } from '../nodeMeta';
 import { NODE_FIELDS, VAR_FIELD, primaryFieldOf } from '../fieldDefs';
 import { BUILTIN_SKILLS } from '../presets/skills';
+import { DEFAULT_PROXY } from '../lib/net';
 
 const SETTINGS_KEY = 'flowforge.settings';
 const WORKFLOW_KEY = 'flowforge.workflow';
 const MODE_KEY = 'flowforge.mode';
 const SKILLS_KEY = 'flowforge.skills';
 
+/** 默认设置。proxyURL 给个可用的只读文本中转，留空则表示不中转。 */
+const DEFAULT_SETTINGS: ApiSettings = {
+  baseURL: 'https://api.openai.com/v1',
+  apiKey: '',
+  model: 'gpt-4o-mini',
+  proxyURL: DEFAULT_PROXY,
+};
+
 function loadSettings(): ApiSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<ApiSettings>;
+      // 与默认值合并：老版本存的设置里没有 proxyURL，不能让它变成 undefined
+      return { ...DEFAULT_SETTINGS, ...saved };
+    }
   } catch {
     /* ignore */
   }
-  return { baseURL: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o-mini' };
+  return DEFAULT_SETTINGS;
 }
 
 function loadMode(): AppMode {
