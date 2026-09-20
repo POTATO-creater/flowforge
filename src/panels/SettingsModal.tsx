@@ -62,6 +62,22 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               placeholder="gpt-4o-mini"
             />
           </div>
+
+          <div className="field">
+            <span className="field__label">
+              网络中转
+              <span className="field__hint">有些网站不允许网页直接访问，靠它绕过</span>
+            </span>
+            <input
+              className="input input--mono"
+              value={draft.proxyURL}
+              onChange={(e) => setDraft({ ...draft, proxyURL: e.target.value })}
+              placeholder="留空就直连"
+            />
+            <span className="field__hint">
+              访问网址、读网页、读订阅这类节点，会先试着直接访问；被网站拦住时，自动改用这里填的地址绕过去。留空就是完全不中转。
+            </span>
+          </div>
         </div>
         <div className="modal__foot">
           <button className="btn btn--ghost" onClick={onClose}>

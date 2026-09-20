@@ -1,5 +1,6 @@
 import { useFlowStore } from '../store/flowStore';
 import type { LogEntry } from '../engine/execute';
+import { readableOutput } from '../lib/preview';
 
 export function LogsPanel({ logs }: { logs: LogEntry[] }) {
   const selected = useFlowStore((s) => s.nodes.find((n) => n.id === s.selectedId));
@@ -30,12 +31,12 @@ export function LogsPanel({ logs }: { logs: LogEntry[] }) {
       </div>
       {run && (
         <div className="logs__detail">
-          <h4>{selected?.data.label} · 收到了什么 / 产出了什么</h4>
-          <pre>
-            {run.error
-              ? `出错了：${run.error}`
-              : JSON.stringify({ 收到: run.input, 产出: run.output }, null, 2)}
-          </pre>
+          <h4>{selected?.data.label} · 结果</h4>
+          {run.error ? (
+            <div className="logs__detail-err">没跑通：{run.error}</div>
+          ) : (
+            <pre>{readableOutput(run.output) || '（没有产出内容）'}</pre>
+          )}
         </div>
       )}
     </div>
