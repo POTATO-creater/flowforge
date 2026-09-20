@@ -23,6 +23,25 @@ function parseHeaders(raw: string): Record<string, string> {
   return out;
 }
 
+/** 直接按 url/method 发起请求（供工具调用节点复用） */
+export async function requestRaw(
+  url: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  headers: Record<string, string> = {},
+  body?: string,
+  signal?: AbortSignal,
+): Promise<ToolResult> {
+  const resp = await fetch(url, { method, headers, body, signal });
+  const text = await resp.text();
+  let json: unknown;
+  try {
+    json = text ? JSON.parse(text) : undefined;
+  } catch {
+    json = undefined;
+  }
+  return { status: resp.status, body: text, json };
+}
+
 export async function callTool(
   cfg: ToolConfig,
   ctx: VarContext,
@@ -36,20 +55,86 @@ export async function callTool(
   if (cfg.method !== 'GET' && cfg.method !== 'DELETE' && cfg.body.trim()) {
     body = interpolate(cfg.body, ctx);
   }
+  return requestRaw(url, cfg.method, headers, body, signal);
+}
 
-  const resp = await fetch(url, {
-    method: cfg.method,
-    headers,
-    body,
-    signal,
-  });
+// ============================================================
+// 网页抓取：浏览器直连第三方站点会被 CORS 拦截，
+// 故默认经只读文本代理（r.jina.ai）取回正文。
+// ============================================================
 
-  const text = await resp.text();
-  let json: unknown;
+export interface FetchResult {
+  title: string;
+  content: string;
+  url: string;
+  status: number;
+}
+
+/** 去 HTML 标签，压掉多余空白 */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** 从 Markdown 正文里提取首个一级标题作 title */
+function pickTitle(md: string): string {
+  const m = md.match(/^\s*Title:\s*(.+)$/m) || md.match(/^#\s+(.+)$/m);
+  return m ? m[1].trim() : '';
+}
+
+export async function fetchPage(
+  opts: { url: string; proxy: string; extract: 'markdown' | 'text' | 'raw'; headers: string; timeout: number },
+  ctx: VarContext,
+  signal?: AbortSignal,
+): Promise<FetchResult> {
+  const target = interpolate(opts.url, ctx).trim();
+  if (!target) throw new Error('网页抓取节点未配置网址');
+
+  const proxy = interpolate(opts.proxy, ctx).trim();
+  // proxy 为空则直连（仅在同源或对方开放 CORS 时可行）
+  const endpoint = proxy ? `${proxy.replace(/\/+$/, '')}/${target}` : target;
+
+  const headers = parseHeaders(interpolate(opts.headers, ctx));
+
+  const timeoutMs = Math.max(5, Number(opts.timeout) || 30) * 1000;
+  const timer = new AbortController();
+  const onAbort = () => timer.abort();
+  signal?.addEventListener('abort', onAbort);
+  const to = setTimeout(() => timer.abort(), timeoutMs);
+
   try {
-    json = text ? JSON.parse(text) : undefined;
-  } catch {
-    json = undefined;
+    const resp = await fetch(endpoint, {
+      method: 'GET',
+      headers,
+      signal: timer.signal,
+    });
+    const raw = await resp.text();
+    if (!resp.ok) {
+      throw new Error(`抓取失败：${resp.status} ${resp.statusText}`);
+    }
+    const content = opts.extract === 'raw' ? raw : opts.extract === 'text' ? stripHtml(raw) : raw;
+    return {
+      title: pickTitle(raw),
+      content,
+      url: target,
+      status: resp.status,
+    };
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error(`抓取超时（${opts.timeout} 秒）：${target}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(to);
+    signal?.removeEventListener('abort', onAbort);
   }
-  return { status: resp.status, body: text, json };
 }
