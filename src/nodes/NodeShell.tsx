@@ -1,7 +1,8 @@
 import { Handle, Position } from '@xyflow/react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { RunStatus, RunInfo } from '../types';
 import { readableOutput, clip, outputImage } from '../lib/preview';
+import { CountUp } from '../lib/CountUp';
 
 interface SourceHandleDef {
   id: string;
@@ -20,6 +21,12 @@ interface NodeShellProps {
   hasTarget?: boolean;
   sources?: SourceHandleDef[];
   children?: ReactNode;
+  /** 运行视图下是否被压暗（还没跑到 / 被跳过） */
+  dim?: boolean;
+  /** 拖线时：这个节点能不能连（高亮 / 变灰） */
+  compatible?: 'yes' | 'no';
+  /** 是否打了断点 */
+  breakpoint?: boolean;
 }
 
 export function NodeShell({
@@ -32,6 +39,9 @@ export function NodeShell({
   hasTarget = true,
   sources = [{ id: 'out', top: '50%' }],
   children,
+  dim,
+  compatible,
+  breakpoint,
 }: NodeShellProps) {
   const st = status ?? 'idle';
   const result = run?.status === 'success' ? readableOutput(run.output) : '';
@@ -41,13 +51,28 @@ export function NodeShell({
   const pic = run?.status === 'success' ? outputImage(run.output) : '';
 
   return (
-    <div className="node" data-status={st} data-selected={selected}>
+    <div
+      className="node"
+      data-status={st}
+      data-selected={selected}
+      data-dim={dim ? 'true' : undefined}
+      data-compatible={compatible}
+      data-breakpoint={breakpoint ? 'true' : undefined}
+      style={{ '--node-color': `var(${colorVar})` } as CSSProperties}
+    >
       {hasTarget && <Handle type="target" position={Position.Left} />}
 
       <div className="node__head">
         <span className="node__dot" style={{ background: `var(${colorVar})` }} />
         <span className="node__kind">{kindLabel}</span>
         <span className="node__title">{label}</span>
+        {run && run.status !== 'idle' && (
+          <span className="node__status" data-state={run.status}>
+            {run.status === 'running' && '跑中'}
+            {run.status === 'success' && '✓'}
+            {run.status === 'error' && '✕'}
+          </span>
+        )}
       </div>
 
       <div className="node__body">
@@ -64,8 +89,12 @@ export function NodeShell({
               </span>
               {run.status === 'success' && typeof run.durationMs === 'number' && (
                 <span className="node__result-meta">
-                  {chars > 0 ? `${chars} 个字 · ` : ''}
-                  {run.durationMs} 毫秒
+                  {chars > 0 ? (
+                    <>
+                      <CountUp value={chars} suffix=" 个字" /> ·{' '}
+                    </>
+                  ) : null}
+                  <CountUp value={run.durationMs} suffix=" 毫秒" />
                 </span>
               )}
             </div>
