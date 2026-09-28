@@ -1365,7 +1365,7 @@ async function executeToolCall(
   try {
     const r = await requestRaw(finalUrl, 'GET', {}, undefined, signal);
     const body = r.body.length > 8000 ? `${r.body.slice(0, 8000)}\n…（已截断）` : r.body;
-    return { status: r.status, body };
+    return { status: r.status, result: body || '(空响应)' };
   } catch (e) {
     return { status: 0, result: `调用失败：${e instanceof Error ? e.message : String(e)}` };
   }
