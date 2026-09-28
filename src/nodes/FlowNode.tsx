@@ -3,6 +3,7 @@ import type { FlowNodeData, NodeConfig } from '../types';
 import { NODE_METAS } from '../nodeMeta';
 import { NodeShell } from './NodeShell';
 import { assertNever } from '../lib/assertNever';
+import { useFlowStore } from '../store/flowStore';
 
 type FlowNodeType = Node<FlowNodeData, 'flow'>;
 
@@ -16,6 +17,26 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
   const meta = NODE_METAS[data.kind];
   const status = data.run?.status;
   const cfg = data.config;
+  const running = useFlowStore((s) => s.running);
+  const connecting = useFlowStore((s) => s.connecting);
+  const edges = useFlowStore((s) => s.edges);
+
+  // 运行视图：还没跑到的节点压暗，让焦点集中在已跑 / 正在跑的节点上
+  const dim = running && status == null;
+  // 拖线高亮：根据起点判断当前节点能不能连
+  let compatible: 'yes' | 'no' | undefined;
+  if (connecting) {
+    if (connecting.nodeId === data.id) {
+      compatible = 'no';
+    } else {
+      const exists = edges.some(
+        (e) =>
+          (e.source === connecting.nodeId && e.target === data.id) ||
+          (e.target === connecting.nodeId && e.source === data.id),
+      );
+      compatible = exists ? 'no' : 'yes';
+    }
+  }
 
   // 统一的渲染参数，避免每分支重复
   const shell = (kindLabel: string, sources?: { id: string; top: string }[]) => ({
@@ -25,6 +46,9 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
     selected,
     status,
     run: data.run,
+    dim,
+    compatible,
+    breakpoint: data.breakpoint,
     ...(sources ? { sources } : {}),
   });
 
@@ -400,6 +424,16 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
             <span className="tag">{FACT_SOURCE_TEXT[S(cfg, 'source')] ?? '随机一条'}</span>
           </div>
           <div className="node__preview">随便拿条冷知识</div>
+        </NodeShell>
+      );
+
+    case 'mcpFetch':
+      return (
+        <NodeShell {...shell('读')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">读网页正文</span>
+          </div>
+          <div className="node__preview">{S(cfg, 'url') || '还没填网页地址'}</div>
         </NodeShell>
       );
 
