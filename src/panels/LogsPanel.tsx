@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useFlowStore } from '../store/flowStore';
 import type { LogEntry } from '../engine/execute';
 import { readableOutput } from '../lib/preview';
@@ -5,6 +6,20 @@ import { readableOutput } from '../lib/preview';
 export function LogsPanel({ logs }: { logs: LogEntry[] }) {
   const selected = useFlowStore((s) => s.nodes.find((n) => n.id === s.selectedId));
   const run = selected?.data.run;
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const atBottomRef = useRef(true);
+
+  // 新日志来时，如果用户本来就在底部，就自动滚到底
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
+  }, [logs]);
+
+  function onScroll() {
+    const el = bodyRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+  }
 
   return (
     <div className="logs">
@@ -12,7 +27,7 @@ export function LogsPanel({ logs }: { logs: LogEntry[] }) {
         运行记录
         <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>{logs.length} 条</span>
       </div>
-      <div className="logs__body">
+      <div className="logs__body" ref={bodyRef} onScroll={onScroll}>
         {logs.length === 0 ? (
           <div style={{ color: 'var(--text-muted)' }}>
             点上面的「跑一遍」，这里会一步步显示每个节点做了什么。
