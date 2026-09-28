@@ -8,3 +8,8 @@ dist/
 .DS_Store
 *.log
 tsconfig.tsbuildinfo
+
+# 本地打包/导出的临时产物，不该进仓库
+*.zip
+*.bundle
+*.patch
