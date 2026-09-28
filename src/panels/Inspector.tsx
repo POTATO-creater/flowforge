@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useFlowStore } from '../store/flowStore';
-import { NODE_METAS } from '../nodeMeta';
+import { NODE_METAS, suggestNext } from '../nodeMeta';
 import {
   NODE_FIELDS,
   VAR_FIELD,
@@ -8,8 +8,8 @@ import {
   primaryFieldOf,
   fieldAcceptsVars,
 } from '../fieldDefs';
-import type { FieldDef, NodeConfig, FlowNodeData } from '../types';
-import { TrashIcon, SparkIcon, ArrowLeftIcon } from '../lib/icons';
+import type { FieldDef, NodeConfig, FlowNodeData, NodeKind } from '../types';
+import { TrashIcon, SparkIcon, ArrowLeftIcon, PlayIcon, PlusIcon } from '../lib/icons';
 import { readableOutput, outputImage } from '../lib/preview';
 
 /** 上游节点信息：用于「把上游结果放进来」按钮 */
@@ -21,7 +21,7 @@ interface UpstreamRef {
   token: string;
 }
 
-export function Inspector() {
+export function Inspector({ onRunSingle }: { onRunSingle?: (id: string) => void }) {
   const selectedId = useFlowStore((s) => s.selectedId);
   const node = useFlowStore((s) => s.nodes.find((n) => n.id === s.selectedId));
   const nodes = useFlowStore((s) => s.nodes);
@@ -32,6 +32,7 @@ export function Inspector() {
   const renameNode = useFlowStore((s) => s.renameNode);
   const deleteNode = useFlowStore((s) => s.deleteNode);
   const applySkill = useFlowStore((s) => s.applySkill);
+  const toggleBreakpoint = useFlowStore((s) => s.toggleBreakpoint);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [skillId, setSkillId] = useState('');
@@ -136,6 +137,18 @@ export function Inspector() {
     setSkillId('');
   };
 
+  /** 推荐连线：点一下就加一个推荐节点，并自动从当前节点连一条线过去 */
+  const addAndConnect = (k: NodeKind) => {
+    const st = useFlowStore.getState();
+    const base = node.position;
+    st.addNodeAt(k, { x: base.x + 300, y: base.y + (st.nodes.length % 3) * 40 });
+    const newId = st.nodes.slice(-1)[0]?.id;
+    if (newId) {
+      st.onConnect({ source: selectedId, target: newId, sourceHandle: 'out', targetHandle: null });
+    }
+  };
+  const suggested = suggestNext(kind);
+
   // 当前该往哪个字段插：优先用户聚焦的，否则主字段
   const activeField = focusField || primary;
   const activeAcceptsVars = (() => {
@@ -157,6 +170,22 @@ export function Inspector() {
             onChange={(e) => renameNode(selectedId, e.target.value)}
             aria-label="节点名字"
           />
+          <button
+            className={`btn btn--icon${node.data.breakpoint ? ' btn--danger' : ''}`}
+            onClick={() => toggleBreakpoint(selectedId)}
+            title={node.data.breakpoint ? '取消这个断点' : '在这里设个断点（运行到这之前先停）'}
+          >
+            ⏸
+          </button>
+          {node.data.run && onRunSingle && (
+            <button
+              className="btn btn--icon"
+              onClick={() => onRunSingle(selectedId)}
+              title="只重跑这一个节点"
+            >
+              <PlayIcon />
+            </button>
+          )}
           <button
             className="btn btn--icon btn--danger"
             onClick={() => deleteNode(selectedId)}
@@ -196,6 +225,22 @@ export function Inspector() {
                 这个节点还没接上任何东西。从别的节点拉一条线连过来，就能用它的结果了。
               </div>
             )}
+          </div>
+        )}
+
+        {/* 推荐连线：根据当前节点，给新手一点下一步的方向 */}
+        {suggested.length > 0 && (
+          <div className="ins-suggest">
+            <div className="ins-suggest__head">接下来常接</div>
+            <div className="ins-suggest__chips">
+              {suggested.map((k) => (
+                <button key={k} className="ins-suggest__chip" onClick={() => addAndConnect(k)} title={`加一个「${NODE_METAS[k].name}」并连过来`}>
+                  <span className="ins-suggest__dot" style={{ background: `var(${NODE_METAS[k].colorVar})` }} />
+                  <PlusIcon size={12} />
+                  {NODE_METAS[k].name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
