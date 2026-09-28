@@ -47,6 +47,7 @@ export const VAR_FIELD: Record<NodeKind, string> = {
   rss: '文章',
   chart: '图片',
   fact: '内容',
+  mcpFetch: '正文',
   wait: '内容',
   switch: '判断',
   stop: '内容',
@@ -93,6 +94,7 @@ export const RAW_VAR_FIELD: Record<NodeKind, string> = {
   rss: 'list',
   chart: 'url',
   fact: 'text',
+  mcpFetch: 'content',
   wait: 'text',
   switch: 'branch',
   stop: 'text',
@@ -1355,6 +1357,51 @@ const NET_FIELDS: Partial<Record<NodeKind, NodeFieldSpec>> = {
       },
     ],
   },
+
+  mcpFetch: {
+    plain: '把一个网页的正文读出来。用的是一台专门的阅读器，读出来就是干净的文字，后面的节点能直接拿去用。',
+    resultName: '正文',
+    fields: [
+      {
+        key: 'url',
+        label: '网页地址',
+        type: 'text',
+        level: 'basic',
+        primary: true,
+        placeholder: 'https://example.com/article',
+        hint: '把浏览器上方的网址复制进来即可',
+      },
+      {
+        key: 'server',
+        label: '阅读器地址',
+        type: 'text',
+        level: 'basic',
+        placeholder: '不用填，已经帮你填好了',
+        hint: '一般不用改。想换成别的抓取服务，才把你自己的地址填进来',
+        vars: false,
+      },
+      {
+        key: 'timeout',
+        label: '最多等多少秒',
+        type: 'number',
+        level: 'advanced',
+        min: 5,
+        max: 120,
+        step: 5,
+        hint: '网页太慢一直转圈，可以调大一点',
+        vars: false,
+      },
+      {
+        key: 'tool',
+        label: '用哪个功能',
+        type: 'text',
+        level: 'advanced',
+        placeholder: '留空就自动挑',
+        hint: '一般不用填。只有读不出内容时，才需要手动指定',
+        vars: false,
+      },
+    ],
+  },
 };
 
 /** ============================================================
@@ -1477,7 +1524,6 @@ export const NODE_FIELDS = Object.assign(
   NET_FIELDS,
   FLOW_FIELDS,
 ) as Record<NodeKind, NodeFieldSpec>;
-
 export function primaryFieldOf(kind: NodeKind): string {
   const spec = NODE_FIELDS[kind];
   const found = spec.fields.find((f) => f.primary);
