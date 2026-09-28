@@ -65,8 +65,11 @@ function withProxy(proxy: string, url: string): string {
   return proxy + url;
 }
 
-/** 判断一个异常是不是「被浏览器跨域拦了」 */
-function isCorsLike(e: unknown): boolean {
+/**
+ * 判断一个异常是不是「被浏览器跨域拦了」。
+ * 导出给 LLM 客户端复用——它不走 fetchSmart，但需要同一套判断。
+ */
+export function isCorsLike(e: unknown): boolean {
   if (!(e instanceof Error)) return false;
   // 浏览器出于安全，跨域失败时统一报得很含糊，只能靠这几种特征判断
   const msg = e.message.toLowerCase();
