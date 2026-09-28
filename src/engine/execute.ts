@@ -39,11 +39,13 @@ import type {
   RssConfig,
   ChartConfig,
   FactConfig,
+  McpFetchConfig,
   WaitConfig,
   SwitchConfig,
   StopConfig,
   WatchConfig,
   NodeKind,
+  NodeConfig,
 } from '../types';
 import { useFlowStore } from '../store/flowStore';
 import { NODE_FIELDS, VAR_FIELD, RAW_VAR_FIELD } from '../fieldDefs';
@@ -59,6 +61,7 @@ import {
 } from './vars';
 import { callLLM, type ChatMessage, type ToolSpec } from './llm';
 import { callTool, fetchPage, requestRaw } from './tools';
+import { mcpFetchPage } from './mcp';
 import {
   toList,
   renderObject,
@@ -152,6 +155,7 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
   const controller = new AbortController();
   currentAbort = () => controller.abort();
   let failed = false;
+  let breakpointHit = false;
 
   for (const id of order) {
     if (controller.signal.aborted) {
@@ -165,6 +169,13 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
 
     const t0 = performance.now();
     const input = buildInput(node, ctx);
+    // 断点：运行到这个节点之前先停下，便于排查中间结果
+    if (node.data.breakpoint) {
+      breakpointHit = true;
+      onLog({ t: now(), tag: 'info', msg: `⏸ 在「${node.data.label}」的断点停下了，后面的还没跑。` });
+      store.setRunning(false);
+      break;
+    }
     store.setNodeRun(id, { status: 'running', input });
     onLog({ t: now(), tag: 'run', msg: `▶ 开始「${node.data.label}」` });
 
@@ -201,16 +212,188 @@ export async function runWorkflow(onLog: (e: LogEntry) => void): Promise<boolean
   currentAbort = undefined;
   store.setRunning(false);
 
-  if (!failed && !controller.signal.aborted) {
+  if (breakpointHit) {
+    onLog({
+      t: now(),
+      tag: 'info',
+      msg: '在断点停下了。想继续就再点「跑一遍」（会从开头重跑），或去掉这个断点。',
+    });
+  } else if (!failed && !controller.signal.aborted) {
     onLog({ t: now(), tag: 'ok', msg: '整条流程跑完了。' });
   }
-  return !failed;
+  return !failed && !breakpointHit;
 }
 
 /** 当前运行的 abort 句柄（模块级，供 stopWorkflow 调用） */
 let currentAbort: (() => void) | undefined;
 export function stopWorkflow() {
   currentAbort?.();
+}
+
+/**
+ * 假数据：返回构造好的结果，让「不调真实接口也能把流程跑通」成为现实。
+ * 只覆盖需要联网 / 调 AI 的节点；数据整理、文字、编码这类纯本地节点直接走真实逻辑。
+ */
+function mockOutput(
+  kind: NodeKind,
+  config: NodeConfig,
+): Record<string, unknown> | null {
+  switch (kind) {
+    case 'llm':
+    case 'chain':
+    case 'agent': {
+      const c = config as LLMConfig & ChainConfig & AgentConfig;
+      return {
+        content: '（假数据）这是 AI 的模拟回复，用来先把流程跑通。填好密钥后这里会变成真实内容。',
+        reasoning: '步骤1：理解问题。\n步骤2：给出结论。',
+        steps: ['步骤1：理解问题', '步骤2：给出结论'],
+        model: (c.model as string) || 'mock-model',
+        usage: { total_tokens: 128 },
+        toolCalls: [],
+        rounds: 1,
+      };
+    }
+    case 'loop': {
+      return {
+        results: ['（假数据）第 1 段的处理结果', '（假数据）第 2 段的处理结果'],
+        text: '（假数据）第 1 段的处理结果\n（假数据）第 2 段的处理结果',
+        count: 2,
+        truncated: false,
+      };
+    }
+    case 'fetch':
+      return {
+        content: '（假数据）这是抓回来的网页文字示例，足够用来验证后续节点。',
+        title: '示例页面',
+        url: 'https://example.com',
+        status: 200,
+      };
+    case 'tool':
+      return { status: 200, body: '（假数据）接口返回的示例内容。', json: null };
+    case 'hn':
+      return {
+        list: '1. 示例话题（99 分）\nhttps://example.com/a\n\n2. 另一个示例（88 分）\nhttps://example.com/b',
+        items: [
+          { title: '示例话题', score: 99, url: 'https://example.com/a' },
+          { title: '另一个示例', score: 88, url: 'https://example.com/b' },
+        ],
+        count: 2,
+      };
+    case 'rss':
+      return {
+        list: '示例文章标题\nhttps://example.com/post',
+        items: [{ title: '示例文章标题', link: 'https://example.com/post' }],
+        count: 1,
+      };
+    case 'fact':
+      return { text: '（假数据）猫的呼噜声频率大约在 25–150 Hz。', content: '（假数据）猫的呼噜声频率大约在 25–150 Hz。' };
+    case 'chart':
+      return { url: 'mock-chart://bar', image: 'mock-chart://bar', count: 3 };
+    case 'mcpFetch':
+      return {
+        content: '（假数据）这是从网页上读回来的正文示例，足够用来验证后面的节点。',
+        title: '示例页面',
+        url: 'https://example.com/article',
+        status: 200,
+      };
+    default:
+      // 其它节点（数据整理 / 文字 / 编码 / 流程控制）走真实逻辑，不在此伪造
+      return null;
+  }
+}
+
+/**
+ * 单节点重跑：只运行目标节点及其上游（用来反复调试某一步，而不必每次都重跑整张图）。
+ * 复用 executeNode 作为单节点执行器，所以行为和整跑完全一致。
+ */
+export async function runSingleNode(id: string, onLog: (e: LogEntry) => void): Promise<boolean> {
+  const store = useFlowStore.getState();
+  const { nodes, edges, settings } = store;
+
+  const target = nodes.find((n) => n.id === id);
+  if (!target) {
+    onLog({ t: now(), tag: 'err', msg: '找不到要重跑的节点。' });
+    return false;
+  }
+
+  // 收集目标节点及其全部上游祖先
+  const ancestors = new Set<string>();
+  const visit = (nid: string) => {
+    if (ancestors.has(nid)) return;
+    ancestors.add(nid);
+    for (const e of edges.filter((ed) => ed.target === nid)) visit(e.source);
+  };
+  visit(id);
+
+  const order = topoSort(nodes, edges);
+  if (!order) {
+    onLog({ t: now(), tag: 'err', msg: '节点之间连成了圈，绕不出来，没法单独跑。' });
+    return false;
+  }
+  const runOrder = order.filter((x) => ancestors.has(x));
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+
+  // 需要从某个「开始」节点作为入口
+  const starts = nodes.filter((n) => n.data.kind === 'start' && ancestors.has(n.id));
+  if (starts.length === 0) {
+    onLog({
+      t: now(),
+      tag: 'info',
+      msg: `「${target.data.label}」的上游没有「开始」节点，没法单独跑——它得先有输入。`,
+    });
+    return false;
+  }
+
+  setActiveAliases(
+    buildAliases(
+      nodes.map((n) => ({
+        id: n.id,
+        label: n.data.label,
+        resultName: NODE_FIELDS[n.data.kind].resultName ?? VAR_FIELD[n.data.kind],
+        rawField: RAW_VAR_FIELD[n.data.kind],
+      })),
+    ),
+  );
+
+  const ctx: VarContext = {};
+  const enabled = new Set<string>(starts.map((n) => n.id));
+  let failed = false;
+
+  for (const nid of runOrder) {
+    if (!enabled.has(nid)) continue;
+    const node = nodeById.get(nid);
+    if (!node) continue;
+
+    const t0 = performance.now();
+    const input = buildInput(node, ctx);
+    store.setNodeRun(nid, { status: 'running', input });
+    onLog({ t: now(), tag: 'run', msg: `▶ 跑「${node.data.label}」` });
+
+    try {
+      const output = await executeNode(node, ctx, settings, edges, new AbortController().signal, onLog);
+      ctx[nid] = output;
+      const dur = Math.round(performance.now() - t0);
+      store.setNodeRun(nid, { status: 'success', input, output, durationMs: dur });
+      onLog({ t: now(), tag: 'ok', msg: `✓ 「${node.data.label}」做好了（${dur} 毫秒）` });
+
+      for (const e of edges.filter((ed) => ed.source === nid && ancestors.has(ed.target))) {
+        if (!enabled.has(e.target)) enabled.add(e.target);
+      }
+      // 跑到目标节点就停，只回写它的结果
+      if (nid === id) {
+        onLog({ t: now(), tag: 'ok', msg: '只跑了这一个，结果已经显示在卡片上。' });
+        break;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      store.setNodeRun(nid, { status: 'error', input, error: message, durationMs: Math.round(performance.now() - t0) });
+      onLog({ t: now(), tag: 'err', msg: `✗ 「${node.data.label}」没跑通：${message}` });
+      failed = true;
+      break;
+    }
+  }
+
+  return !failed;
 }
 
 // —— 执行单个节点 ——
@@ -223,6 +406,13 @@ async function executeNode(
   onLog: (e: LogEntry) => void,
 ): Promise<Record<string, unknown>> {
   const { kind, config } = node.data;
+
+  // 假数据模式：AI / 联网类节点直接返回构造好的结果，先把流程跑通
+  if (useFlowStore.getState().mockMode) {
+    const mocked = mockOutput(kind, config);
+    if (mocked) return mocked;
+  }
+
   switch (kind) {
     case 'start': {
       const c = config as StartConfig;
@@ -622,6 +812,36 @@ async function executeNode(
       const text = pickFactText(r.json);
       if (!text) throw new Error('这次没拿到内容，再跑一次试试。');
       return { text, content: text };
+    }
+
+    case 'mcpFetch': {
+      const c = config as McpFetchConfig;
+      const target = interpolate(c.url, ctx).trim();
+      if (!target) throw new Error('这个节点还没填要读的网址。');
+
+      const r = await mcpFetchPage(
+        {
+          url: target,
+          timeout: c.timeout,
+          tool: c.tool,
+          server: c.server,
+          netProxy: settings.proxyURL,
+        },
+        signal,
+      );
+
+      onLog({
+        t: now(),
+        tag: 'info',
+        msg: `  已读到 ${r.url}，一共 ${r.content.length} 个字`,
+      });
+
+      return {
+        content: r.content,
+        title: r.title,
+        url: r.url,
+        status: r.status,
+      };
     }
 
     // ==================== 流程控制补充 ====================
@@ -1145,7 +1365,7 @@ async function executeToolCall(
   try {
     const r = await requestRaw(finalUrl, 'GET', {}, undefined, signal);
     const body = r.body.length > 8000 ? `${r.body.slice(0, 8000)}\n…（已截断）` : r.body;
-    return { status: r.status, result: body || '(空响应)' };
+    return { status: r.status, body };
   } catch (e) {
     return { status: 0, result: `调用失败：${e instanceof Error ? e.message : String(e)}` };
   }
@@ -1204,6 +1424,10 @@ function buildInput(node: Node<FlowNodeData>, ctx: VarContext): unknown {
     case 'fetch': {
       const c = config as FetchConfig;
       return { url: interpolate(c.url, ctx), extract: c.extract };
+    }
+    case 'mcpFetch': {
+      const c = config as McpFetchConfig;
+      return { url: interpolate(c.url, ctx), timeout: c.timeout };
     }
     case 'condition':
       return { expression: interpolateForJS((config as ConditionConfig).expression, ctx) };
