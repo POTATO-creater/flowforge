@@ -12,6 +12,13 @@ import {
   TrashIcon,
   TemplatesIcon,
   SkillIcon,
+  UndoIcon,
+  RedoIcon,
+  SearchIcon,
+  SparkIcon,
+  SunIcon,
+  MoonIcon,
+  AutoThemeIcon,
 } from '../lib/icons';
 
 interface ToolbarProps {
@@ -24,6 +31,17 @@ interface ToolbarProps {
   onOpenSettings: () => void;
   onOpenTemplates: () => void;
   onOpenSkills: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onCommand: () => void;
+  onShare: () => void;
+  onVersions: () => void;
+  onExport: () => void;
+  onAIBuild: () => void;
+  mockMode: boolean;
+  onToggleMock: () => void;
 }
 
 export function Toolbar({
@@ -36,11 +54,24 @@ export function Toolbar({
   onOpenSettings,
   onOpenTemplates,
   onOpenSkills,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onCommand,
+  onShare,
+  onVersions,
+  onExport,
+  onAIBuild,
+  mockMode,
+  onToggleMock,
 }: ToolbarProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const { getNodes } = useReactFlow();
   const mode = useFlowStore((s) => s.mode);
   const setMode = useFlowStore((s) => s.setMode);
+  const theme = useFlowStore((s) => s.theme);
+  const setTheme = useFlowStore((s) => s.setTheme);
 
   return (
     <header className="toolbar">
@@ -61,6 +92,16 @@ export function Toolbar({
         )}
       </div>
 
+      {/* 撤销 / 重做 */}
+      <div className="toolbar__group">
+        <button className="btn btn--icon" onClick={onUndo} disabled={!canUndo} title="撤销 (Ctrl/⌘ + Z)">
+          <UndoIcon />
+        </button>
+        <button className="btn btn--icon" onClick={onRedo} disabled={!canRedo} title="重做 (Ctrl/⌘ + Shift + Z)">
+          <RedoIcon />
+        </button>
+      </div>
+
       {/* 模式切换：小白 / 大佬 */}
       <div className="mode-switch" role="group" aria-label="界面模式">
         <button
@@ -79,9 +120,60 @@ export function Toolbar({
         </button>
       </div>
 
+      {/* 主题：跟系统 / 亮色 / 暗色 */}
+      <div className="mode-switch" role="group" aria-label="界面主题">
+        <button
+          className={`mode-switch__btn mode-switch__btn--icon ${theme === 'system' ? 'is-active' : ''}`}
+          onClick={() => setTheme('system')}
+          title="跟随系统外观"
+          aria-label="跟随系统外观"
+        >
+          <AutoThemeIcon />
+        </button>
+        <button
+          className={`mode-switch__btn mode-switch__btn--icon ${theme === 'light' ? 'is-active' : ''}`}
+          onClick={() => setTheme('light')}
+          title="一直用亮色"
+          aria-label="一直用亮色"
+        >
+          <SunIcon />
+        </button>
+        <button
+          className={`mode-switch__btn mode-switch__btn--icon ${theme === 'dark' ? 'is-active' : ''}`}
+          onClick={() => setTheme('dark')}
+          title="一直用暗色"
+          aria-label="一直用暗色"
+        >
+          <MoonIcon />
+        </button>
+      </div>
+
+      <button
+        className={`btn${mockMode ? ' btn--primary' : ''}`}
+        onClick={onToggleMock}
+        title="假数据模式：不调真实接口，直接返回构造好的结果，方便先把流程跑通"
+      >
+        {mockMode ? '假数据·开' : '假数据·关'}
+      </button>
+
       <div className="toolbar__spacer" />
 
       <div className="toolbar__group">
+        <button className="btn" onClick={onCommand} title="命令面板 (Ctrl/⌘ + K)">
+          <SearchIcon /> 命令
+        </button>
+        <button className="btn" onClick={onAIBuild} title="用 AI 帮你搭流程">
+          <SparkIcon /> AI 搭
+        </button>
+        <button className="btn" onClick={onShare} title="生成一条可分享的链接">
+          分享
+        </button>
+        <button className="btn" onClick={onVersions} title="版本历史">
+          版本
+        </button>
+        <button className="btn" onClick={onExport} title="导出成可运行的代码">
+          导出代码
+        </button>
         <button className="btn" onClick={onOpenTemplates} title="用现成的例子开始">
           <TemplatesIcon /> 现成的
         </button>

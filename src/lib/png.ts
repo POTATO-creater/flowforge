@@ -1,7 +1,25 @@
 import { toPng } from 'html-to-image';
 import { getNodesBounds, getViewportForBounds, type Node } from '@xyflow/react';
 
-/** 把当前画布导出为 PNG（使用 html-to-image，套用暗色背景） */
+/**
+ * 读当前生效的画布底色。
+ *
+ * 必须用 getComputedStyle 取真实值，不能直接传 `var(--bg-canvas)`：
+ * html-to-image 是把颜色画进 canvas 的，canvas 不认 CSS 变量。
+ */
+function currentCanvasBg(): string {
+  try {
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue('--bg-canvas')
+      .trim();
+    if (v) return v;
+  } catch {
+    /* ignore */
+  }
+  return '#ffffff';
+}
+
+/** 把当前画布导出为 PNG（背景跟随当前亮/暗主题） */
 export async function exportCanvasPng(nodes: Node[]) {
   const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
   if (!viewport || nodes.length === 0) return;
@@ -13,7 +31,7 @@ export async function exportCanvasPng(nodes: Node[]) {
   const transform = getViewportForBounds(bounds, width, height, 0.3, 2, padding);
 
   const dataUrl = await toPng(viewport, {
-    backgroundColor: '#0e1116',
+    backgroundColor: currentCanvasBg(),
     width,
     height,
     style: {
