@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { NODE_LIST, NODE_GROUPS } from '../nodeMeta';
 import type { NodeKind } from '../types';
 import { useFlowStore } from '../store/flowStore';
+import { SearchIcon, CloseIcon, ChevronRightIcon } from '../lib/icons';
 
 export const DND_MIME = 'application/flowforge-node';
 
@@ -60,7 +61,7 @@ export function Sidebar() {
       {/* 搜索框：节点多了以后，靠翻列表找太慢 */}
       <div className="sidebar__search">
         <span className="sidebar__search-icon" aria-hidden="true">
-          ⌕
+          <SearchIcon size={15} />
         </span>
         <input
           className="sidebar__search-input"
@@ -76,7 +77,7 @@ export function Sidebar() {
             title="清空"
             aria-label="清空搜索"
           >
-            ×
+            <CloseIcon size={14} />
           </button>
         )}
       </div>
@@ -99,7 +100,7 @@ export function Sidebar() {
               disabled={searching}
             >
               <span className={`sidebar__chev${isOpen ? ' is-open' : ''}`} aria-hidden="true">
-                ▸
+                <ChevronRightIcon size={12} />
               </span>
               <span>{g.title}</span>
               <span className="sidebar__count-badge">{g.items.length}</span>
