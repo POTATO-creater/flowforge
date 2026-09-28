@@ -495,6 +495,23 @@ export const NODE_METAS: Record<NodeKind, NodeMeta> = {
     defaultConfig: () => ({ source: 'uselessfacts' }),
   },
 
+  mcpFetch: {
+    kind: 'mcpFetch',
+    name: '读网页（魔搭）',
+    desc: '把网页读成干净正文',
+    plain: '把一个网页的正文读出来，交给后面的节点用。适合读文章、教程这类字很多的页面。',
+    badge: '读',
+    colorVar: '--nt-mcpfetch',
+    group: 'net',
+    needsProxy: true,
+    defaultConfig: () => ({
+      url: '',
+      timeout: 30,
+      tool: '',
+      server: '',
+    }),
+  },
+
   // ============================================================
   // 流程控制补充
   // ============================================================
@@ -561,6 +578,57 @@ export const NODE_GROUPS: { key: NodeMeta['group']; title: string }[] = [
 ];
 
 export const NODE_LIST: NodeMeta[] = Object.values(NODE_METAS);
+
+/**
+ * 推荐连线：根据当前节点，给出「接下来常接」的节点种类。
+ * 用来在右侧面板里给新手一点方向感（梯队四·推荐连线）。
+ */
+export const NEXT_SUGGESTIONS: Partial<Record<NodeKind, NodeKind[]>> = {
+  start: ['llm', 'fetch', 'tool', 'output'],
+  llm: ['output', 'merge', 'condition', 'watch'],
+  chain: ['output', 'merge', 'watch'],
+  agent: ['output', 'merge', 'watch'],
+  loop: ['merge', 'output', 'watch'],
+  fetch: ['llm', 'markdown', 'splitout', 'watch'],
+  tool: ['llm', 'output', 'watch'],
+  hn: ['llm', 'output', 'watch'],
+  rss: ['llm', 'output', 'watch'],
+  fact: ['llm', 'output', 'watch'],
+  mcpFetch: ['llm', 'markdown', 'splitout', 'watch'],
+  chart: ['output', 'watch'],
+  pick: ['output', 'llm', 'watch'],
+  filter: ['output', 'llm', 'watch'],
+  sort: ['output', 'watch'],
+  limit: ['output', 'watch'],
+  dedupe: ['output', 'watch'],
+  splitout: ['loop', 'llm', 'output'],
+  aggregate: ['output', 'watch'],
+  summarize: ['output', 'watch'],
+  renamekeys: ['output', 'watch'],
+  markdown: ['output', 'watch'],
+  html: ['output', 'watch'],
+  xml: ['output', 'watch'],
+  findreplace: ['output', 'watch'],
+  slice: ['output', 'watch'],
+  datetime: ['output', 'watch'],
+  crypto: ['output', 'watch'],
+  encode: ['output', 'watch'],
+  totp: ['output', 'watch'],
+  jwt: ['output', 'watch'],
+  condition: ['llm', 'output', 'stop'],
+  switch: ['llm', 'output', 'stop'],
+  merge: ['llm', 'output', 'watch'],
+  wait: ['llm', 'output', 'watch'],
+  code: ['output', 'watch'],
+  stop: ['output', 'watch'],
+  output: [],
+  watch: [],
+};
+
+/** 取某个节点的推荐后续节点种类（最多 4 个） */
+export function suggestNext(kind: NodeKind): NodeKind[] {
+  return (NEXT_SUGGESTIONS[kind] ?? []).slice(0, 4);
+}
 
 /** 创建一个带有默认配置的新节点 */
 export function makeNode(
