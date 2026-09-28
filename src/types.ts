@@ -41,6 +41,7 @@ export type NodeKind =
   | 'rss' // 读订阅
   | 'chart' // 出图表
   | 'fact' // 查冷知识
+  | 'mcpFetch' // 读网页（魔搭）：借魔搭广场上的抓取服务把网页读成正文
   // —— 流程控制补充 ——
   | 'wait' // 等一会儿
   | 'switch' // 分多条路
@@ -52,6 +53,12 @@ export type RunStatus = 'idle' | 'running' | 'success' | 'error';
 
 /** 界面模式：basic = 小白模式（只留核心字段），pro = 大佬模式（全部可见） */
 export type AppMode = 'basic' | 'pro';
+
+/** 界面主题：light = 亮色，dark = 暗色，system = 跟随系统外观 */
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+/** 实际生效的主题（system 经系统偏好解析后的结果） */
+export type ResolvedTheme = 'light' | 'dark';
 
 /** 配置字段的难度分级 */
 export type FieldLevel = 'basic' | 'advanced';
@@ -318,6 +325,14 @@ export interface FactConfig {
   source: string; // catfact / uselessfacts
 }
 
+/** 读网页（魔搭）：借魔搭广场上的抓取服务，把一个网页读成干净正文 */
+export interface McpFetchConfig {
+  url: string; // 要读的网页地址，支持 {{变量}}
+  timeout: number; // 最多等多少秒
+  tool?: string; // 高级：手动指定用哪个功能；留空自动挑
+  server?: string; // 高级：换别的阅读器时才填；留空用内置的
+}
+
 // ============================================================
 // 流程控制补充
 // ============================================================
@@ -380,6 +395,7 @@ export type NodeConfig =
   | RssConfig
   | ChartConfig
   | FactConfig
+  | McpFetchConfig
   | WaitConfig
   | SwitchConfig
   | StopConfig
@@ -391,6 +407,8 @@ export interface FlowNodeData extends Record<string, unknown> {
   label: string;
   config: NodeConfig;
   run?: RunInfo;
+  /** 断点：运行到这个节点之前先停下来（深度功能） */
+  breakpoint?: boolean;
 }
 
 /** 导入 / 导出的工作流文件结构 */
@@ -429,6 +447,55 @@ export interface ApiSettings {
    */
   proxyURL: string;
 }
+
+// ============================================================
+// 云端保管箱（把私密信息集中存在 Supabase 里）
+// ============================================================
+
+/**
+ * 保管箱配置：指向用户自己的一个 Supabase 项目。
+ *
+ * 说明一句实话：这个应用整个跑在浏览器里，所以钥匙在运行时必然处在
+ * 浏览器内存中。保管箱能解决的是「钥匙集中在一处、换台电脑也能用」，
+ * 解决不了「前端拿得到」——这一点没有前端方案能解决。
+ */
+export interface VaultSettings {
+  /** 保管箱地址，形如 https://xxxxx.supabase.co */
+  url: string;
+  /** 打开保管箱用的钥匙 */
+  key: string;
+}
+
+/** 保管箱里的一条私密信息 */
+export interface VaultItem {
+  /** 云端生成的行号，新建时为空 */
+  id?: string;
+  /** 人话名称，如「免费 AI」 */
+  name: string;
+  /** 用途分类，决定它出现在哪个列表里 */
+  kind: VaultKind;
+  /** 具体内容：地址、钥匙、默认模型等，按 kind 解释 */
+  payload: VaultPayload;
+  /** 同类里默认用哪一条 */
+  is_default?: boolean;
+}
+
+/** 保管箱条目的用途分类 */
+export type VaultKind = 'ai_service' | 'web_reader' | 'other';
+
+/** AI 服务条目里装的东西，与 ApiSettings 的字段一一对应 */
+export interface AIServicePayload extends Record<string, unknown> {
+  baseURL: string;
+  apiKey: string;
+  model: string;
+  proxyURL?: string;
+}
+
+/**
+ * 保管箱条目的内容。目前只有 AI 服务这一类有确定结构，
+ * 其余用途先允许放任意键值，避免将来加类型时卡住。
+ */
+export type VaultPayload = AIServicePayload | Record<string, unknown>;
 
 /** 节点的功能分组，决定它出现在左侧节点库的哪一栏 */
 export type NodeGroup =
