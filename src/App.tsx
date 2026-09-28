@@ -21,58 +21,66 @@ import { LogsPanel } from './panels/LogsPanel';
 import { SettingsModal } from './panels/SettingsModal';
 import { PresetsModal } from './panels/PresetsModal';
 import { SkillsModal } from './panels/SkillsModal';
+import { CommandPalette } from './panels/CommandPalette';
+import { ShareModal } from './panels/ShareModal';
+import { VersionsModal } from './panels/VersionsModal';
+import { ExportCodeModal } from './panels/ExportCodeModal';
+import { AIBuildModal } from './panels/AIBuildModal';
 import { downloadWorkflowJSON, readWorkflowFile } from './lib/persistence';
-import { runWorkflow, stopWorkflow, type LogEntry } from './engine/execute';
+import { runWorkflow, stopWorkflow, runSingleNode, type LogEntry } from './engine/execute';
+import { readShareFromUrl } from './lib/share';
+import { TemplatesIcon, PlusIcon, UploadIcon } from './lib/icons';
 
 // 节点类型映射（模块级稳定引用，避免 React Flow 告警）
 const nodeTypes: NodeTypes = { flow: FlowNode };
 
-// MiniMap 配色（React Flow 需要实际颜色值）
+/**
+ * MiniMap 的节点配色。
+ *
+ * 这里刻意不写死色值：React Flow 把 nodeColor 渲染成 SVG 的 style.fill，
+ * 属于 CSS 属性，所以可以直接吃 CSS 变量。好处是节点色只有 tokens.css
+ * 一个真源，切换亮/暗主题时浏览器自动重解析，不需要任何 JS 参与。
+ */
 const MINIMAP_COLOR: Record<NodeKind, string> = {
-  start: '#6ea8fe',
-  llm: '#34e3b0',
-  chain: '#7fe3a0',
-  agent: '#9d8cff',
-  tool: '#f5b14c',
-  fetch: '#4cc9f0',
-  condition: '#c792ea',
-  merge: '#ffd166',
-  loop: '#f78fb3',
-  code: '#8be9fd',
-  output: '#ff9e64',
-  // 数据整理：同一色系（青蓝→蓝紫），互相拉不开但成组可辨
-  pick: '#5ec8d8',
-  filter: '#63b8e8',
-  sort: '#6aa9f0',
-  limit: '#7599e6',
-  dedupe: '#8089dc',
-  splitout: '#8b7ad2',
-  aggregate: '#966bc8',
-  summarize: '#a15cbe',
-  renamekeys: '#ac4db4',
-  // 文字处理：暖橙→砖红
-  markdown: '#e8a04a',
-  html: '#e8955a',
-  xml: '#e88a6a',
-  findreplace: '#e87f7a',
-  slice: '#e8748a',
-  // 日期与编码：绿色系
-  datetime: '#8fd47a',
-  crypto: '#a3d96a',
-  encode: '#b7de5a',
-  totp: '#cbe34a',
-  jwt: '#dfe83a',
-  // 网络
-  hn: '#58b8f0',
-  rss: '#5fa6ea',
-  chart: '#6b93e0',
-  fact: '#7a80d6',
-  // 流程控制
-  wait: '#b98ce0',
-  switch: '#a878d8',
-  stop: '#d06090',
-  // 看结果
-  watch: '#ffb877',
+  start: 'var(--nt-start)',
+  llm: 'var(--nt-llm)',
+  chain: 'var(--nt-chain)',
+  agent: 'var(--nt-agent)',
+  tool: 'var(--nt-tool)',
+  fetch: 'var(--nt-fetch)',
+  condition: 'var(--nt-condition)',
+  merge: 'var(--nt-merge)',
+  loop: 'var(--nt-loop)',
+  code: 'var(--nt-code)',
+  output: 'var(--nt-output)',
+  pick: 'var(--nt-pick)',
+  filter: 'var(--nt-filter)',
+  sort: 'var(--nt-sort)',
+  limit: 'var(--nt-limit)',
+  dedupe: 'var(--nt-dedupe)',
+  splitout: 'var(--nt-splitout)',
+  aggregate: 'var(--nt-aggregate)',
+  summarize: 'var(--nt-summarize)',
+  renamekeys: 'var(--nt-renamekeys)',
+  markdown: 'var(--nt-markdown)',
+  html: 'var(--nt-html)',
+  xml: 'var(--nt-xml)',
+  findreplace: 'var(--nt-findreplace)',
+  slice: 'var(--nt-slice)',
+  datetime: 'var(--nt-datetime)',
+  crypto: 'var(--nt-crypto)',
+  encode: 'var(--nt-encode)',
+  totp: 'var(--nt-totp)',
+  jwt: 'var(--nt-jwt)',
+  hn: 'var(--nt-hn)',
+  rss: 'var(--nt-rss)',
+  chart: 'var(--nt-chart)',
+  fact: 'var(--nt-fact)',
+  mcpFetch: 'var(--nt-mcpfetch)',
+  wait: 'var(--nt-wait)',
+  switch: 'var(--nt-switch)',
+  stop: 'var(--nt-stop)',
+  watch: 'var(--nt-watch)',
 };
 
 function Editor() {
@@ -82,7 +90,12 @@ function Editor() {
   const onEdgesChange = useFlowStore((s) => s.onEdgesChange);
   const onConnect = useFlowStore((s) => s.onConnect);
   const addNodeAt = useFlowStore((s) => s.addNodeAt);
-  const setSelected = useFlowStore((s) => s.setSelected);
+  const deleteNode = useFlowStore((s) => s.deleteNode);
+  const selectedId = useFlowStore((s) => s.selectedId);
+  const undo = useFlowStore((s) => s.undo);
+  const redo = useFlowStore((s) => s.redo);
+  const canUndo = useFlowStore((s) => s.past.length > 0);
+  const canRedo = useFlowStore((s) => s.future.length > 0);
   const running = useFlowStore((s) => s.running);
   const settings = useFlowStore((s) => s.settings);
   const serialize = useFlowStore((s) => s.serialize);
@@ -93,8 +106,52 @@ function Editor() {
   const [showSettings, setShowSettings] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showAIBuild, setShowAIBuild] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [edgeMenu, setEdgeMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [sharePrompt, setSharePrompt] = useState<import('./types').WorkflowJSON | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+  const toastTimer = useRef<number>();
   const { screenToFlowPosition } = useReactFlow();
+
+  const setConnecting = useFlowStore((s) => s.setConnecting);
+  const deleteEdge = useFlowStore((s) => s.deleteEdge);
+  const mockMode = useFlowStore((s) => s.mockMode);
+  const setMockMode = useFlowStore((s) => s.setMockMode);
+  const resolvedTheme = useFlowStore((s) => s.resolvedTheme);
+  const applySystemTheme = useFlowStore((s) => s.applySystemTheme);
+
+  // 把当前生效的主题写到 <html data-theme>，CSS 变量随之整套切换。
+  // 首帧由 index.html 里的内联脚本先定好，这里负责后续的每次变化。
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+  }, [resolvedTheme]);
+
+  // 用户选了「跟随系统」时，系统外观一变界面就跟着变
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => applySystemTheme();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [applySystemTheme]);
+
+  // 打开别人分享的链接时，问一句要不要载入
+  useEffect(() => {
+    const wf = readShareFromUrl();
+    if (wf) {
+      setSharePrompt(wf);
+      try {
+        history.replaceState(null, '', location.pathname + location.search);
+      } catch {
+        /* 清不掉 hash 也无所谓 */
+      }
+    }
+  }, []);
 
   const pushLog = useCallback((e: LogEntry) => setLogs((prev) => [...prev, e]), []);
 
@@ -105,10 +162,15 @@ function Editor() {
     }
   }, []);
 
-  // 双击节点库 -> 沿一条斜线依次错开落点，避免多个节点完全重叠
-  useEffect(() => {
-    const handler = (ev: Event) => {
-      const kind = (ev as CustomEvent<NodeKind>).detail;
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 1600) as unknown as number;
+  }, []);
+
+  // 在画布中心附近落一个节点（双击节点库 / 空状态卡片 / 命令面板共用）
+  const addNodeAtCenter = useCallback(
+    (kind: NodeKind) => {
       const rect = wrapperRef.current?.getBoundingClientRect();
       if (!rect) return;
       const center = screenToFlowPosition({
@@ -124,10 +186,19 @@ function Editor() {
         x: center.x - 110 + offset.x,
         y: center.y - 40 + offset.y,
       });
+    },
+    [screenToFlowPosition, addNodeAt],
+  );
+
+  // 双击节点库 -> 沿一条斜线依次错开落点，避免多个节点完全重叠
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const kind = (ev as CustomEvent<NodeKind>).detail;
+      addNodeAtCenter(kind);
     };
     window.addEventListener('flowforge:add', handler);
     return () => window.removeEventListener('flowforge:add', handler);
-  }, [screenToFlowPosition, addNodeAt]);
+  }, [addNodeAtCenter]);
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -150,6 +221,15 @@ function Editor() {
     void runWorkflow(pushLog);
   }, [pushLog]);
 
+  const handleRunSingle = useCallback(
+    (id: string) => {
+      void runSingleNode(id, pushLog);
+    },
+    [pushLog],
+  );
+
+  const connecting = useFlowStore((s) => s.connecting);
+
   const handleStop = useCallback(() => stopWorkflow(), []);
 
   const handleExportJson = useCallback(() => downloadWorkflowJSON(serialize()), [serialize]);
@@ -171,11 +251,54 @@ function Editor() {
   );
 
   const handleClear = useCallback(() => {
-    if (confirm('确定清空画布？此操作不可撤销。')) {
+    if (confirm('确定清空画布？清空后可以用 Ctrl/⌘ + Z 撤销找回。')) {
       clear();
       setLogs([]);
     }
   }, [clear]);
+
+  // 全局快捷键：删除 / 撤销重做 / 保存 / 命令面板
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (paletteOpen) return;
+      const mod = e.metaKey || e.ctrlKey;
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable === true;
+
+      if (mod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+      if (mod && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        useFlowStore.getState().persist();
+        showToast('已存到本地');
+        return;
+      }
+      if (mod && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (mod && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      // 删除选中节点（仅在没在打字时）
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && selectedId) {
+        e.preventDefault();
+        deleteNode(selectedId);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paletteOpen, undo, redo, deleteNode, selectedId, showToast]);
 
   const noApiKey = !settings.apiKey;
 
@@ -187,11 +310,22 @@ function Editor() {
           onRun={handleRun}
           onStop={handleStop}
           onExportJson={handleExportJson}
-          onImportFile={handleImportFile}
+          onImportFile={(f) => void handleImportFile(f)}
           onClear={handleClear}
           onOpenSettings={() => setShowSettings(true)}
           onOpenTemplates={() => setShowTemplates(true)}
           onOpenSkills={() => setShowSkills(true)}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          onCommand={() => setPaletteOpen(true)}
+          onShare={() => setShowShare(true)}
+          onVersions={() => setShowVersions(true)}
+          onExport={() => setShowExport(true)}
+          onAIBuild={() => setShowAIBuild(true)}
+          mockMode={mockMode}
+          onToggleMock={() => setMockMode(!mockMode)}
         />
       </div>
 
@@ -208,16 +342,33 @@ function Editor() {
             </button>
           </div>
         )}
-        <div className="canvas-wrap" ref={wrapperRef} onDrop={onDrop} onDragOver={onDragOver}>
+        <div
+          className={`canvas-wrap${connecting ? ' connecting' : ''}`}
+          ref={wrapperRef}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+        >
           <ReactFlow
+            className={running ? 'run-view' : ''}
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeClick={(_, n) => setSelected(n.id)}
-            onPaneClick={() => setSelected(null)}
+            onConnectStart={(_, p) =>
+              p.nodeId && setConnecting({ nodeId: p.nodeId, handleType: (p.handleType as 'source' | 'target') ?? 'source' })
+            }
+            onConnectEnd={() => setConnecting(null)}
+            onEdgeContextMenu={(e, edge) => {
+              e.preventDefault();
+              setEdgeMenu({ x: e.clientX, y: e.clientY, id: edge.id });
+            }}
+            onNodeClick={(_, n) => useFlowStore.getState().setSelected(n.id)}
+            onPaneClick={() => {
+              useFlowStore.getState().setSelected(null);
+              setEdgeMenu(null);
+            }}
             fitView
             fitViewOptions={{ padding: 0.35, maxZoom: 1, minZoom: 0.4 }}
             proOptions={{ hideAttribution: true }}
@@ -225,13 +376,18 @@ function Editor() {
             minZoom={0.2}
             maxZoom={2.5}
           >
-            <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(255,255,255,0.07)" />
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={20}
+              size={1}
+              color="var(--canvas-dot)"
+            />
             <Controls showInteractive={false} />
             <MiniMap
               pannable
               zoomable
-              nodeColor={(n) => MINIMAP_COLOR[(n.data as FlowNodeData).kind] ?? '#888'}
-              maskColor="rgba(11,14,19,0.7)"
+              nodeColor={(n) => MINIMAP_COLOR[(n.data as FlowNodeData).kind] ?? 'var(--st-idle)'}
+              maskColor="var(--canvas-mask)"
             />
           </ReactFlow>
 
@@ -239,14 +395,30 @@ function Editor() {
             <div className="canvas-empty">
               <div className="canvas-empty__inner">
                 <h2>这里空空如也</h2>
-                <p>
-                  最快的办法是直接用现成的例子，点下面的按钮看看。
-                  <br />
-                  想自己搭也行，把左边的方块拖过来就好。
-                </p>
-                <button className="btn btn--primary canvas-empty__cta" onClick={() => setShowTemplates(true)}>
-                  看看有什么现成的
-                </button>
+                <p>挑一种方式开始，随时都能改。</p>
+                <div className="canvas-empty__cards">
+                  <button className="start-card start-card--primary" onClick={() => setShowTemplates(true)}>
+                    <span className="start-card__icon">
+                      <TemplatesIcon size={18} />
+                    </span>
+                    <span className="start-card__title">挑个现成的例子</span>
+                    <span className="start-card__desc">从模板库选一个，几秒就能跑起来。</span>
+                  </button>
+                  <button className="start-card" onClick={() => addNodeAtCenter('start')}>
+                    <span className="start-card__icon">
+                      <PlusIcon size={18} />
+                    </span>
+                    <span className="start-card__title">先放一个「开始」块</span>
+                    <span className="start-card__desc">从零搭，拖进来第一个节点。</span>
+                  </button>
+                  <button className="start-card" onClick={() => importRef.current?.click()}>
+                    <span className="start-card__icon">
+                      <UploadIcon size={18} />
+                    </span>
+                    <span className="start-card__title">导入一份工作流</span>
+                    <span className="start-card__desc">把导出的 .json 文件读进来。</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -256,12 +428,123 @@ function Editor() {
       </div>
 
       <div className="app__inspector">
-        <Inspector />
+        <Inspector onRunSingle={handleRunSingle} />
       </div>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showTemplates && <PresetsModal onClose={() => setShowTemplates(false)} />}
       {showSkills && <SkillsModal onClose={() => setShowSkills(false)} />}
+      {showShare && <ShareModal onClose={() => setShowShare(false)} />}
+      {showVersions && <VersionsModal onClose={() => setShowVersions(false)} />}
+      {showExport && <ExportCodeModal onClose={() => setShowExport(false)} />}
+      {showAIBuild && <AIBuildModal onClose={() => setShowAIBuild(false)} />}
+      {paletteOpen && (
+        <CommandPalette
+          running={running}
+          onClose={() => setPaletteOpen(false)}
+          onRun={handleRun}
+          onStop={handleStop}
+          onUndo={undo}
+          onRedo={redo}
+          onClear={handleClear}
+          onOpenTemplates={() => {
+            setPaletteOpen(false);
+            setShowTemplates(true);
+          }}
+          onOpenSettings={() => {
+            setPaletteOpen(false);
+            setShowSettings(true);
+          }}
+          onExportJson={handleExportJson}
+          onAddNode={addNodeAtCenter}
+          onShare={() => {
+            setPaletteOpen(false);
+            setShowShare(true);
+          }}
+          onVersions={() => {
+            setPaletteOpen(false);
+            setShowVersions(true);
+          }}
+          onExportCode={() => {
+            setPaletteOpen(false);
+            setShowExport(true);
+          }}
+          onAIBuild={() => {
+            setPaletteOpen(false);
+            setShowAIBuild(true);
+          }}
+          onSaveVersion={() => {
+            useFlowStore.getState().saveVersion();
+            setPaletteOpen(false);
+            showToast('已存为版本');
+          }}
+        />
+      )}
+
+      {toast && <div className="toast-inline app__toast">{toast}</div>}
+
+      {/* 连线右键菜单 */}
+      {edgeMenu && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 69 }} onClick={() => setEdgeMenu(null)} />
+          <div className="edge-menu" style={{ left: edgeMenu.x, top: edgeMenu.y }} role="menu">
+            <button
+              className="edge-menu__item is-danger"
+              onClick={() => {
+                deleteEdge(edgeMenu.id);
+                setEdgeMenu(null);
+              }}
+            >
+              删除这条连线
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* 别人分享的链接：问一句要不要载入 */}
+      {sharePrompt && (
+        <div className="modal-backdrop" onClick={() => setSharePrompt(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__head">
+              有人分享了一个工作流
+              <button className="btn btn--icon btn--ghost" onClick={() => setSharePrompt(null)} aria-label="关闭">
+                ✕
+              </button>
+            </div>
+            <div className="modal__body">
+              <p className="inspector__plain">
+                链接里带着「{sharePrompt.name}」，要载入到画布上吗？当前内容会被覆盖（可以用 Ctrl/⌘ + Z 撤销）。
+              </p>
+            </div>
+            <div className="modal__foot">
+              <button className="btn" onClick={() => setSharePrompt(null)}>
+                不用了
+              </button>
+              <button
+                className="btn btn--primary"
+                onClick={() => {
+                  loadWorkflowJSON(sharePrompt, sharePrompt.name);
+                  setSharePrompt(null);
+                }}
+              >
+                载入
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={importRef}
+        type="file"
+        accept="application/json,.json"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void handleImportFile(f);
+          e.target.value = '';
+        }}
+      />
     </div>
   );
 }
