@@ -13,3 +13,6 @@ tsconfig.tsbuildinfo
 *.zip
 *.bundle
 *.patch
+
+# 本地工具配置，不进仓库
+.cloudstudio

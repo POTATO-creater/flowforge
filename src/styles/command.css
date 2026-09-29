@@ -1,0 +1,183 @@
+/* ===== 命令面板与无障碍 ===== */
+
+/* ===================== 命令面板 ===================== */
+.cmd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--modal-backdrop);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14vh;
+  z-index: 60;
+  animation: fade-in 0.16s ease both;
+}
+.cmd {
+  width: min(560px, 92vw);
+  max-height: 64vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-panel);
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+  animation: cmd-in 0.2s var(--ease-out) both;
+}
+@keyframes cmd-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.cmd__search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-hair);
+  color: var(--text-muted);
+}
+.cmd__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-lg);
+  outline: none;
+}
+.cmd__input::placeholder {
+  color: var(--text-muted);
+}
+.cmd__kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-hair);
+  color: var(--text-muted);
+}
+.cmd__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2);
+}
+.cmd__group {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  padding: var(--sp-3) var(--sp-2) var(--sp-1);
+}
+.cmd-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: 9px var(--sp-2);
+  border: none;
+  border-radius: var(--r-btn);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cmd-row.is-active {
+  background: var(--accent-dim);
+}
+.cmd-row.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.cmd-row__icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+}
+.cmd-row.is-active .cmd-row__icon {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-panel-2));
+  color: var(--accent);
+}
+.cmd-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cmd-row__label {
+  font-weight: 600;
+  font-size: var(--fs-md);
+}
+.cmd-row__hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.cmd__empty {
+  padding: var(--sp-5);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.cmd__foot {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.cmd__foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cmd__foot kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-hair);
+  color: var(--text-secondary);
+}
+
+/* 保存等操作的轻提示：苹果的 HUD —— 深色半透明胶囊 + 模糊 + 白字 */
+.app__toast {
+  position: fixed;
+  bottom: 220px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  background: var(--hud-bg);
+  color: #fff;
+  font-size: var(--fs-md);
+  font-weight: 500;
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
+  box-shadow: var(--sh-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

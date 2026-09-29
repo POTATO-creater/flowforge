@@ -1,0 +1,114 @@
+/* ===== Reset / Base 与 App 布局 ===== */
+
+/* ===================== Reset / Base ===================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  color: var(--text-primary);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base);
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: var(--text-primary);
+}
+::selection {
+  background: var(--accent-dim);
+}
+
+/* 滚动条：苹果式 overlay —— 平时几乎不可见，滚动/悬停时才浮出来 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--r-pill);
+  /* 用透明边框把拇指收窄，视觉上更细，符合苹果的纤细感 */
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ===================== App 布局 ===================== */
+.app {
+  display: grid;
+  grid-template-rows: 52px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr) 320px;
+  grid-template-areas:
+    'toolbar toolbar toolbar'
+    'sidebar canvas inspector';
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-app);
+}
+.app__toolbar {
+  grid-area: toolbar;
+  min-width: 0;
+  border-bottom: 1px solid var(--border-hair);
+  /* 苹果的 vibrancy：半透明 + 背部模糊，让面板像一块磨砂玻璃浮在画布上 */
+  background: var(--bg-vibrancy);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+.app__sidebar {
+  grid-area: sidebar;
+  min-height: 0;
+  border-right: 1px solid var(--border-hair);
+  background: var(--bg-vibrancy);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  overflow-y: auto;
+}
+.app__canvas {
+  grid-area: canvas;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app__inspector {
+  grid-area: inspector;
+  min-height: 0;
+  border-left: 1px solid var(--border-hair);
+  background: var(--bg-vibrancy);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  overflow-y: auto;
+}

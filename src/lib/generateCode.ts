@@ -19,24 +19,24 @@ export function generateJS(wf: WorkflowJSON, settings: ApiSettings): string {
 // 运行：把本文件存成 pipeline.mjs，执行  node pipeline.mjs
 // 依赖：Node 18+（自带 fetch / Web Crypto）
 //
-// 运行前先设置你的密钥（这样密钥就不会写进代码里，转发给别人也安全）：
-//   macOS / Linux:   AI_KEY=你的密钥 node pipeline.mjs
-//   Windows:         set AI_KEY=你的密钥 && node pipeline.mjs
+// AI 的配置已经写在文件里了，存下来就能直接跑，不用额外设置什么。
+// 想换成你自己的 AI，改下面 SETTINGS 里那两行即可。
 // ============================================================
 const SETTINGS = ${JSON.stringify(
     {
       baseURL: settings.baseURL,
-      // 密钥刻意不写进文件：导出的代码经常会被转发、提交到仓库，
-      // 明文写进去等于把密钥直接送人。改成运行时从环境变量读。
+      apiKey: settings.apiKey,
       model: settings.model,
       proxyURL: settings.proxyURL,
     },
     null,
     2,
   )};
-SETTINGS.apiKey = (typeof process !== 'undefined' && process.env && process.env.AI_KEY) || '';
-if (!SETTINGS.apiKey) {
-  console.warn('提示：还没设置 AI_KEY，用到 AI 的步骤会失败。运行前先执行 AI_KEY=你的密钥 node pipeline.mjs');
+// 想换掉文件里自带的配置，就跑之前设一下环境变量（不设就用文件里的）
+if (typeof process !== 'undefined' && process.env) {
+  if (process.env.AI_KEY) SETTINGS.apiKey = process.env.AI_KEY;
+  if (process.env.AI_BASE_URL) SETTINGS.baseURL = process.env.AI_BASE_URL;
+  if (process.env.AI_MODEL) SETTINGS.model = process.env.AI_MODEL;
 }
 
 const WORKFLOW = ${JSON.stringify(data, null, 2)};
@@ -260,3 +260,60 @@ main();
 export function nodeName(kind: NodeKind): string {
   return NODE_METAS[kind]?.name ?? kind;
 }
+
+/**
+ * 导出代码里「每个节点怎么处理」的登记表。
+ *
+ * 为什么要有这张表：真正生成的那份 JS 是拼在字符串里的，TypeScript 管不着它，
+ * 于是「新增了一类节点、忘了在导出里加对应处理」这种漏网很难被发现——
+ * 导出出来的代码会跑进 default 分支，只丢一句「暂未实现」，还以为是能用。
+ * 这张表放在生成器这一侧、类型是 Record<NodeKind, true>，漏登记就编译不过，
+ * 把问题挡在写代码的时候。
+ */
+export type ExportedKind = NodeKind;
+const EXPORT_HANDLED: Record<NodeKind, true> = {
+  start: true,
+  llm: true,
+  chain: true,
+  tool: true,
+  fetch: true,
+  agent: true,
+  condition: true,
+  merge: true,
+  loop: true,
+  code: true,
+  output: true,
+  pick: true,
+  filter: true,
+  sort: true,
+  limit: true,
+  dedupe: true,
+  splitout: true,
+  aggregate: true,
+  summarize: true,
+  renamekeys: true,
+  markdown: true,
+  html: true,
+  xml: true,
+  findreplace: true,
+  slice: true,
+  datetime: true,
+  crypto: true,
+  encode: true,
+  totp: true,
+  jwt: true,
+  hn: true,
+  rss: true,
+  chart: true,
+  fact: true,
+  mcpFetch: true,
+  wait: true,
+  switch: true,
+  stop: true,
+  watch: true,
+  imageGen: true,
+  imageEdit: true,
+  imageMix: true,
+};
+// 只是让 TypeScript 别把这张表当成未使用变量，同时给未来留一个好改的落点
+void EXPORT_HANDLED;

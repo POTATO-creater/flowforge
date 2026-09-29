@@ -24,7 +24,7 @@ export function AIBuildModal({ onClose }: { onClose: () => void }) {
 
   const build = async () => {
     if (!settings.apiKey) {
-      setErr('还没填 AI 的密钥，没法让 AI 搭。先去设置里填上。');
+      setErr('自带的免费 AI 没接上（多半是网络问题）。检查一下网络，或者从设置里换成自己的 AI。');
       return;
     }
     if (!desc.trim()) {

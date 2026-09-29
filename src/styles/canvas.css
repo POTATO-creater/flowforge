@@ -1,0 +1,258 @@
+/* ===== 画布与连线 ===== */
+
+/* ===================== Canvas / React Flow ===================== */
+.canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--bg-canvas);
+}
+/* 画布氛围层：两团柔和辉光，给画布一点纵深（亮色下会显脏，故由令牌压到近乎不可见） */
+.canvas-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(55% 45% at 80% 8%, var(--canvas-glow-a), transparent 70%),
+    radial-gradient(50% 45% at 10% 92%, var(--canvas-glow-b), transparent 70%);
+}
+.react-flow {
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+.react-flow__background {
+  background: transparent;
+}
+.react-flow__edge-path {
+  /* 不能直接用 --border-strong：亮色下那点白几乎看不见 */
+  stroke: var(--edge-color);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke var(--dur-fast);
+}
+/* 选中/悬停时线加粗一点，一眼看清是哪根 */
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+}
+.react-flow__edge.edge-running .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2.8;
+  stroke-dasharray: 7 5;
+  animation: edge-flow 0.7s linear infinite;
+}
+.react-flow__edge.edge-done .react-flow__edge-path {
+  stroke: var(--st-success);
+}
+/* 数据在线条上往前走的效果 */
+@keyframes edge-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* 连线出现时淡入一下，像「长出来」 */
+.react-flow__edge {
+  animation: edge-in 0.32s ease both;
+}
+@keyframes edge-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* 运行视图：非激活（还没跑到 / 被跳过）的节点整体压暗，焦点更清楚 */
+.react-flow.run-view .node[data-dim='true'] {
+  opacity: 0.34;
+  filter: saturate(0.5);
+}
+/* 拖线时：能连的节点高亮，不能连的变灰（梯队四） */
+.canvas-wrap.connecting .node[data-compatible='yes'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim), var(--sh-2);
+}
+.canvas-wrap.connecting .node[data-compatible='no'] {
+  opacity: 0.4;
+}
+/* 连线右键菜单（梯队四） */
+.edge-menu {
+  position: fixed;
+  z-index: 70;
+  min-width: 150px;
+  padding: 5px;
+  border-radius: var(--r-btn);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  box-shadow: var(--sh-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: menu-in 0.12s var(--ease-out) both;
+}
+.edge-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  padding: 7px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.edge-menu__item:hover {
+  background: var(--bg-hover);
+}
+.edge-menu__item.is-danger {
+  color: var(--st-error);
+}
+.edge-menu__item.is-danger:hover {
+  background: color-mix(in srgb, var(--st-error) 14%, transparent);
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 连接点做大一点，更好连线；::after 把可点区域再放大一圈 */
+.react-flow__handle {
+  width: 11px;
+  height: 11px;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-strong);
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.react-flow__handle::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
+.react-flow__handle:hover,
+.react-flow__handle-connecting,
+.react-flow__handle-valid {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+/* 连线命中区加宽，细线也好点中 */
+.react-flow__edge .react-flow__edge-interaction {
+  stroke-width: 18;
+}
+.react-flow__controls {
+  box-shadow: var(--sh-1);
+  border-radius: var(--r-btn);
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-hair);
+  color: var(--text-primary);
+  fill: var(--text-primary);
+}
+.react-flow__controls-button:hover {
+  background: var(--bg-hover);
+}
+.react-flow__minimap {
+  background: var(--bg-panel);
+  border-radius: var(--r-btn);
+  border: 1px solid var(--border-hair);
+}
+.react-flow__attribution {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* 画布空状态（项 14：三张推荐卡片） */
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--sp-4);
+  z-index: 5;
+}
+.canvas-empty__inner {
+  max-width: 720px;
+}
+.canvas-empty h2 {
+  font-size: var(--fs-xl);
+  color: var(--text-secondary);
+  margin: 0 0 var(--sp-2);
+  letter-spacing: -0.02em;
+}
+.canvas-empty p {
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  margin: 0;
+  color: var(--text-secondary);
+}
+.canvas-empty__cards {
+  margin-top: var(--sp-5);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+}
+.start-card {
+  pointer-events: auto;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-node);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  transition: border-color var(--dur-fast), background var(--dur-fast), transform var(--dur-fast);
+}
+.start-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateY(-2px);
+}
+.start-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.start-card__title {
+  font-weight: 600;
+  font-size: var(--fs-md);
+}
+.start-card__desc {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.start-card--primary {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.start-card--primary .start-card__icon {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}

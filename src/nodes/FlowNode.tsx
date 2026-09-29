@@ -13,6 +13,32 @@ function S(cfg: NodeConfig, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
+/** 出图节点卡片上那枚「多大 / 什么形状」的小标签 */
+function SIZE_RATIO_TEXT(cfg: NodeConfig): string {
+  const size = S(cfg, 'size') || '2K';
+  const ratio = S(cfg, 'ratio') || '1:1';
+  return `${size} · ${ratio}`;
+}
+
+/**
+ * 把「要参考的图」缩成一小段能显示的说明。
+ * 因为它可能是一长串图片内容，直接铺在卡片上会把整张卡撑爆，
+ * 所以统一转成「第几个节点的那种写法」或「一段图片内容」。
+ */
+function shortRef(raw: string): string {
+  const s = raw.trim();
+  if (!s) return '';
+  if (/^\{\{/.test(s)) return s;
+  if (/^data:image\//i.test(s)) return '一段图片内容';
+  if (/^https?:\/\//i.test(s)) return '一个图片网址';
+  return s.length > 18 ? `${s.slice(0, 18)}…` : s;
+}
+
+/** 数一数填了几行参考图（合成节点卡片上要显示「几张一起合」） */
+function refCount(raw: string): number {
+  return raw.split('\n').map((s) => s.trim()).filter(Boolean).length;
+}
+
 export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
   const meta = NODE_METAS[data.kind];
   const status = data.run?.status;
@@ -484,6 +510,50 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
           </div>
           <div className="node__preview">
             看的是：{S(cfg, 'want') || '这个节点的全部内容'}
+          </div>
+        </NodeShell>
+      );
+
+    // ==================== 出图 ====================
+
+    case 'imageGen':
+      return (
+        <NodeShell {...shell('画')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{SIZE_RATIO_TEXT(cfg)}</span>
+          </div>
+          <div className="node__preview">
+            {S(cfg, 'prompt') || '还没写要画什么'}
+          </div>
+        </NodeShell>
+      );
+
+    case 'imageEdit':
+      return (
+        <NodeShell {...shell('改')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{SIZE_RATIO_TEXT(cfg)}</span>
+          </div>
+          <div className="node__preview">
+            {S(cfg, 'prompt') || '还没写要改成什么样'}
+          </div>
+          <div className="node__meta">
+            原图：{shortRef(S(cfg, 'image')) || '还没选'}
+          </div>
+        </NodeShell>
+      );
+
+    case 'imageMix':
+      return (
+        <NodeShell {...shell('合')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{SIZE_RATIO_TEXT(cfg)}</span>
+          </div>
+          <div className="node__preview">
+            {S(cfg, 'prompt') || '还没写要怎么合'}
+          </div>
+          <div className="node__meta">
+            {refCount(S(cfg, 'images'))} 张图一起合
           </div>
         </NodeShell>
       );

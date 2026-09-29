@@ -61,7 +61,7 @@ export function PresetsModal({ onClose }: { onClose: () => void }) {
                   <button key={t.id} className="tpl-card" onClick={() => onPick(t.id)}>
                     <div className="tpl-card__head">
                       <span className="tpl-card__name">{t.name}</span>
-                      {t.needsKey && <span className="tpl-card__badge">要先填密钥</span>}
+                      {t.needsKey && <span className="tpl-card__badge">要用 AI</span>}
                     </div>
                     <p className="tpl-card__desc">{t.desc}</p>
                     <div className="tpl-card__badges">

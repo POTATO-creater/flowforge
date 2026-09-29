@@ -102,6 +102,11 @@
   --nt-stop: #c42a6e;
   --nt-watch: #d47a00;
 
+  /* 出图：粉紫→玫红，跟「让 AI 干活」的绿系明确区分开 */
+  --nt-imagegen: #d6338c;
+  --nt-imageedit: #bf2fa8;
+  --nt-imagemix: #9b2fc4;
+
   /* —— 字体：苹果系统字体栈（无外网依赖）—— */
   --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue',
     'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
@@ -246,6 +251,10 @@
   --nt-switch: #a878d8;
   --nt-stop: #d06090;
   --nt-watch: #ffb877;
+
+  --nt-imagegen: #ff8fc8;
+  --nt-imageedit: #e88ce0;
+  --nt-imagemix: #c98cf0;
 
   /* —— 阴影：暗色下加深 —— */
   --sh-1: 0 1px 3px rgba(0, 0, 0, 0.4);

@@ -86,6 +86,54 @@ export const NODE_METAS: Record<NodeKind, NodeMeta> = {
     }),
   },
 
+  // —— 出图 ——
+  imageGen: {
+    kind: 'imageGen',
+    name: '画一张图',
+    desc: '给一句描述，画一张新图',
+    plain: '把你想画的东西写成一句话交给它，它会画出一张全新的图。画好的图存进流程里，后面能接着改、接着合。',
+    badge: '画',
+    colorVar: '--nt-imagegen',
+    group: 'ai',
+    defaultConfig: () => ({
+      prompt: '',
+      size: '2K',
+      ratio: '1:1',
+    }),
+  },
+
+  imageEdit: {
+    kind: 'imageEdit',
+    name: '照着改图',
+    desc: '拿一张图按描述改',
+    plain: '拿一张已有的图，按你说的去改——换背景、换季节、加个东西、改画风都行，改完是一张新图，原图不动。',
+    badge: '改',
+    colorVar: '--nt-imageedit',
+    group: 'ai',
+    defaultConfig: () => ({
+      image: '',
+      prompt: '',
+      size: '2K',
+      ratio: '1:1',
+    }),
+  },
+
+  imageMix: {
+    kind: 'imageMix',
+    name: '多图合成',
+    desc: '几张图揉成一张',
+    plain: '把两张到四张图放到一起，按你的描述决定谁当主角、谁当背景、怎么摆，最后合成一张新图。',
+    badge: '合',
+    colorVar: '--nt-imagemix',
+    group: 'ai',
+    defaultConfig: () => ({
+      images: '',
+      prompt: '',
+      size: '2K',
+      ratio: '1:1',
+    }),
+  },
+
   tool: {
     kind: 'tool',
     name: '访问网址',
@@ -595,6 +643,9 @@ export const NEXT_SUGGESTIONS: Partial<Record<NodeKind, NodeKind[]>> = {
   rss: ['llm', 'output', 'watch'],
   fact: ['llm', 'output', 'watch'],
   mcpFetch: ['llm', 'markdown', 'splitout', 'watch'],
+  imageGen: ['imageEdit', 'imageMix', 'output', 'watch'],
+  imageEdit: ['imageMix', 'imageGen', 'output', 'watch'],
+  imageMix: ['imageEdit', 'output', 'watch'],
   chart: ['output', 'watch'],
   pick: ['output', 'llm', 'watch'],
   filter: ['output', 'llm', 'watch'],

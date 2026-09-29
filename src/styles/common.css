@@ -1,0 +1,138 @@
+/* ===== 通用：分段控件、模式提示、折叠 ===== */
+
+/* ===================== 通用 ===================== */
+.tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+}
+.banner {
+  position: absolute;
+  top: var(--sp-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: color-mix(in srgb, var(--st-warn) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--st-warn) 50%, transparent);
+  color: var(--st-warn);
+  padding: 8px 14px;
+  border-radius: var(--r-btn);
+  font-size: var(--fs-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+}
+.banner__link {
+  flex: none;
+  background: color-mix(in srgb, var(--st-warn) 88%, transparent);
+  color: #2a1a00;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.banner__link:hover {
+  background: var(--st-warn);
+}
+
+/* ===================== 分段控件（小白/大佬、主题切换）===================== */
+/* 苹果的分段控件：凹槽灰底、无描边，选中项是一块浮起的白色滑块 */
+.mode-switch {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 9px;
+  border: none;
+  background: var(--bg-panel-2);
+  position: relative;
+  z-index: 1;
+}
+.mode-switch__btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  padding: 5px 11px;
+  border-radius: 7px;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.mode-switch__btn:hover {
+  color: var(--text-secondary);
+}
+.mode-switch__btn.is-active {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: var(--sh-1);
+}
+/* 图标型分段按钮：正方形，居中对齐 */
+.mode-switch__btn--icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+}
+/* 图标版选中时用强调色描出，否则三个小图标之间几乎看不出选中了谁 */
+.mode-switch__btn--icon.is-active {
+  color: var(--accent);
+}
+
+/* ===================== Sidebar 分组 ===================== */
+.sidebar__section + .sidebar__section {
+  margin-top: var(--sp-4);
+}
+.sidebar__section .sidebar__title {
+  margin-bottom: var(--sp-2);
+}
+/* 小白模式下描述用两行截断展示人话说明 */
+.palette__desc {
+  line-height: 1.45;
+}
+
+/* ===================== Inspector：模式提示与折叠 ===================== */
+.inspector__mode-tag {
+  margin-left: var(--sp-2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.inspector__plain {
+  padding: var(--sp-3);
+  border-radius: var(--r-node);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+}
+.inspector__divider {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.field__label-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

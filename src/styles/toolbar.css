@@ -1,0 +1,135 @@
+/* ===== 顶部工具栏与按钮 ===== */
+
+/* ===================== Toolbar ===================== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: 100%;
+  padding: 0 var(--sp-4);
+  position: relative;
+  z-index: 30;
+  /* 按钮多，别折行；真挤不下就让 toolbar 自己撑出去（外面是 grid，不会破版） */
+  white-space: nowrap;
+}
+.toolbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  letter-spacing: -0.02em;
+  margin-right: var(--sp-2);
+  user-select: none;
+  flex: none;
+  white-space: nowrap;
+}
+.toolbar__logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.toolbar__brand small {
+  font-weight: 400;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+/* 工具栏挤的时候先收掉副标题，别让品牌名折行 */
+@media (max-width: 1500px) {
+  .toolbar__brand small {
+    display: none;
+  }
+}
+.toolbar__spacer {
+  flex: 1;
+}
+.toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===================== Buttons ===================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-btn);
+  border: 1px solid var(--border-hair);
+  /* 亮色下用白底 + hairline（苹果的次要按钮不是灰底），暗色下用次级容器色 */
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  flex: none;
+  user-select: none;
+  box-shadow: var(--sh-1);
+  transition: background var(--dur-fast), border-color var(--dur-fast),
+    box-shadow var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
+}
+.btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+/* 苹果的焦点态是「蓝色外发光」，不是浏览器默认的粗 outline */
+.btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+  z-index: 2;
+}
+.btn--primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+  font-weight: 600;
+}
+.btn--primary:hover {
+  background: var(--accent-strong);
+  border-color: transparent;
+}
+.btn--danger {
+  color: var(--st-error);
+  border-color: color-mix(in srgb, var(--st-error) 40%, transparent);
+}
+.btn--danger:hover {
+  background: color-mix(in srgb, var(--st-error) 12%, transparent);
+  border-color: color-mix(in srgb, var(--st-error) 50%, transparent);
+}
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.btn--ghost:hover {
+  background: var(--bg-hover);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn--icon {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}

@@ -1,0 +1,286 @@
+/* ============================================================
+   手机端（竖屏为主）
+   ------------------------------------------------------------
+   这一份专门管「窄屏」：手机上节点库、属性面板、日志都不再是并排的
+   侧栏，而是从边上滑出来的抽屉 —— 屏幕就这么点地方，并排塞不下。
+
+   触发方式：根元素上有 data-mobile="true" 时才生效（由脚本按屏宽判断，
+   见 src/lib/mobile.ts）。相比满篇 @media，这样写着更好排查：
+   在开发者工具里手动改一下这个属性，就能立刻看到手机版长什么样。
+   ============================================================ */
+
+/* ---------- 1. 整体骨架：三栏并排改成一层叠一层 ---------- */
+
+[data-mobile='true'] .app {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'toolbar'
+    'canvas';
+  /* 刘海屏 / 圆角屏：内容别钻到系统栏底下 */
+  padding-top: env(safe-area-inset-top);
+}
+
+/* 桌面版的左右侧栏在手机上一律隐藏，改用抽屉 */
+[data-mobile='true'] .app__sidebar,
+[data-mobile='true'] .app__inspector {
+  display: none;
+}
+
+/* ---------- 2. 底部抽屉（节点库 / 日志共用） ---------- */
+
+.drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  max-height: 78vh;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-hair);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18);
+  transform: translateY(100%);
+  transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+  /* 抽屉本体要能滚，但往下拖的手势交给把手 */
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.drawer[data-open='true'] {
+  transform: translateY(0);
+}
+
+/* 上边那道小横杠：既是视觉提示，也是「往下拖能关掉」的抓手 */
+.drawer__grabber {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.drawer__grabber::after {
+  content: '';
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  opacity: 0.6;
+}
+
+.drawer__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4) var(--sp-2);
+}
+
+.drawer__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--sp-3) var(--sp-4);
+}
+
+/* 抽屉打开时后面垫一层暗色，点一下就能关 */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: var(--modal-backdrop);
+  animation: drawer-fade-in 0.18s ease-out;
+}
+
+@keyframes drawer-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- 3. 属性面板：手机上占满整屏 ---------- */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+  transform: translateY(100%);
+  transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheet[data-open='true'] {
+  transform: translateY(0);
+}
+
+.sheet__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: calc(env(safe-area-inset-top) + var(--sp-3)) var(--sp-3) var(--sp-3);
+  border-bottom: 1px solid var(--border-hair);
+  background: var(--bg-panel);
+}
+
+.sheet__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--sp-6));
+}
+
+/* ---------- 4. 底部操作条：手机上的主按钮 ---------- */
+
+.mobile-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) calc(env(safe-area-inset-bottom) + var(--sp-2));
+  background: var(--bg-vibrancy);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid var(--border-hair);
+}
+
+/* 底部有条，画布下方得留出对应高度，否则最后一个节点被挡住 */
+[data-mobile='true'] .canvas-wrap {
+  padding-bottom: 64px;
+}
+
+/* ---------- 5. 画布手势 ---------- */
+
+/* 单指拖动平移画布；双击缩放留给画布自己处理，别让浏览器抢走 */
+[data-mobile='true'] .canvas-wrap {
+  touch-action: none;
+}
+
+/* 手机上手指粗，连接点再放大一圈，否则很难点中 */
+[data-mobile='true'] .react-flow__handle {
+  width: 16px;
+  height: 16px;
+}
+
+/* 节点在手机上稍微放大，文字才看得清 */
+[data-mobile='true'] .node {
+  min-width: 200px;
+}
+
+/* 小地图在手机上太占地方，收掉 */
+[data-mobile='true'] .react-flow__minimap {
+  display: none;
+}
+
+/* ---------- 6. 顶部工具栏：只留最关键的两个动作 ---------- */
+
+[data-mobile='true'] .app__toolbar {
+  padding: var(--sp-2) var(--sp-3);
+}
+
+[data-mobile='true'] .toolbar__brand-sub,
+[data-mobile='true'] .toolbar__desktop-only {
+  display: none;
+}
+
+/* ---------- 7. 弹窗在手机上占满 ---------- */
+
+[data-mobile='true'] .modal {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+}
+
+[data-mobile='true'] .modal__body {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--sp-4));
+}
+
+/* ---------- 8. 点选连线浮层 ---------- */
+
+.connect-picker {
+  position: fixed;
+  left: var(--sp-3);
+  right: var(--sp-3);
+  bottom: calc(env(safe-area-inset-bottom) + 72px);
+  z-index: 45;
+  max-height: 56vh;
+  overflow-y: auto;
+  padding: var(--sp-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hair);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  animation: drawer-fade-in 0.16s ease-out;
+}
+
+.connect-picker__hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-2);
+}
+
+.connect-picker__group {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: var(--sp-3) 0 var(--sp-1);
+}
+
+.connect-picker__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3);
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.connect-picker__item:active {
+  background: var(--bg-hover);
+}
+
+.connect-picker__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* 竖屏窄机（比如 iPhone SE）把抽屉再压矮一点 */
+@media (max-height: 700px) {
+  .drawer { max-height: 84vh; }
+}

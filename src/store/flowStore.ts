@@ -27,6 +27,7 @@ import { NODE_FIELDS, VAR_FIELD, primaryFieldOf } from '../fieldDefs';
 import { BUILTIN_SKILLS } from '../presets/skills';
 import { DEFAULT_PROXY } from '../lib/net';
 import { listVaultItems, upsertVaultItem, deleteVaultItem } from '../lib/vault';
+import { BUILTIN_AI, BUILTIN_VAULT } from '../lib/builtinCredentials';
 
 const SETTINGS_KEY = 'flowforge.settings';
 const WORKFLOW_KEY = 'flowforge.workflow';
@@ -37,14 +38,20 @@ const MOCK_KEY = 'flowforge.mockMode';
 const VERSIONS_KEY = 'flowforge.versions';
 const VAULT_KEY = 'flowforge.vault';
 
-/** 保管箱默认是空的：地址和钥匙都得用户自己填 */
-const DEFAULT_VAULT: VaultSettings = { url: '', key: '' };
+/**
+ * 保管箱配置。
+ *
+ * 默认直接采用内置的那一份 —— 也就是「打开就能用，不用填任何东西」。
+ * 之所以还留一个本机覆盖的口子，是为了开发者自己要指向别的库时方便；
+ * 对普通用户来说，界面上根本不出现这项，也就不会用到。
+ */
+const DEFAULT_VAULT: VaultSettings = { ...BUILTIN_VAULT };
 
-/** 默认设置。proxyURL 给个可用的只读文本中转，留空则表示不中转。 */
+/** 默认设置。默认指向内置的免费 AI，打开就能跑，不需要任何人填东西。 */
 const DEFAULT_SETTINGS: ApiSettings = {
-  baseURL: 'https://api.openai.com/v1',
-  apiKey: '',
-  model: 'gpt-4o-mini',
+  baseURL: BUILTIN_AI.baseURL,
+  apiKey: BUILTIN_AI.apiKey,
+  model: BUILTIN_AI.model,
   proxyURL: DEFAULT_PROXY,
 };
 
@@ -53,8 +60,15 @@ function loadSettings(): ApiSettings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as Partial<ApiSettings>;
-      // 与默认值合并：老版本存的设置里没有 proxyURL，不能让它变成 undefined
-      return { ...DEFAULT_SETTINGS, ...saved };
+      // 与默认值合并：老版本存的设置里没有 proxyURL，不能让它变成 undefined。
+      // 另外，老版本可能把「地址」留空或指向别处，这里不让空值把内置的免费 AI 顶掉。
+      // 密钥同理：以前版本默认密钥是空的，老用户浏览器里就存着一把空钥匙，
+      // 不兜底的话内置的免费 AI 会一直被它顶掉，界面就一直说「还没接上」。
+      const merged = { ...DEFAULT_SETTINGS, ...saved };
+      if (!merged.baseURL) merged.baseURL = DEFAULT_SETTINGS.baseURL;
+      if (!merged.model) merged.model = DEFAULT_SETTINGS.model;
+      if (!merged.apiKey) merged.apiKey = DEFAULT_SETTINGS.apiKey;
+      return merged;
     }
   } catch {
     /* ignore */
@@ -266,6 +280,8 @@ interface FlowState {
   removeVaultItem: (id: string) => Promise<void>;
   /** 把保管箱里某条 AI 配置套用为当前使用的设置 */
   applyVaultItem: (item: VaultItem) => void;
+  /** 开机静默同步：把云端那份 AI 配置取回来用上，取不到就用内置的 */
+  syncBuiltinAI: () => Promise<void>;
 
   // —— 技能 ——
   addSkill: (s: Omit<Skill, 'id'> & { id?: string }) => Skill;
@@ -530,6 +546,45 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       proxyURL: typeof p.proxyURL === 'string' ? p.proxyURL : get().settings.proxyURL,
     };
     get().saveSettings(next);
+  },
+
+  /**
+   * 开机自动同步：把云端存着的那份 AI 配置取回来用上。
+   *
+   * 整个流程是「静默」的 —— 界面上不会弹任何东西：
+   *   · 取到了，就悄悄换上；用户唯一的感觉是「打开就能用」；
+   *   · 取不到（断网、服务临时抽风），就保持内置的那份，照样能用。
+   *
+   * 之所以要有这一步：内置那份是「及格线」，云端那份才是「随时能改的地方」——
+   * 想换模型、换额度，在后台改一下，所有人下次打开就生效，不用重新发版本。
+   */
+  syncBuiltinAI: async () => {
+    const { vault } = get();
+    if (!vault.url.trim() || !vault.key.trim()) return;
+
+    let items: VaultItem[];
+    try {
+      items = await listVaultItems(vault);
+    } catch {
+      // 连不上就用内置那份，不打扰任何人
+      return;
+    }
+    set({ vaultItems: items, vaultStatus: { state: 'ok', note: '' } });
+
+    // 优先用标了「默认」的那条 AI 配置，没有就取第一条 AI 配置
+    const aiItems = items.filter((it) => it.kind === 'ai_service');
+    const chosen = aiItems.find((it) => it.is_default) ?? aiItems[0];
+    if (!chosen) return;
+
+    const p = chosen.payload as Partial<ApiSettings>;
+    // 云端这条里要是缺了钥匙（比如只存了地址），就拿内置的补上，别把能用的状态弄坏
+    const next: ApiSettings = {
+      baseURL: p.baseURL || get().settings.baseURL || BUILTIN_AI.baseURL,
+      apiKey: p.apiKey || get().settings.apiKey || BUILTIN_AI.apiKey,
+      model: p.model || get().settings.model || BUILTIN_AI.model,
+      proxyURL: typeof p.proxyURL === 'string' ? p.proxyURL : get().settings.proxyURL,
+    };
+    set({ settings: next });
   },
 
   setMode: (m) => {

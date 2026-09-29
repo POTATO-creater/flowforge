@@ -19,7 +19,18 @@ export function readableOutput(out: Record<string, unknown> | undefined): string
   // 图表节点产出的是很长一串图片网址，直接铺在卡片上没法看。
   // 卡片上已经把图贴出来了（见 outputImage），这里只报个数。
   if (typeof out.image === 'string' && typeof out.count === 'number') {
+    // 出图类节点也会带 count（合成了几张），说法不一样
+    if (typeof out.prompt === 'string') {
+      return `画好了，合成用了 ${out.count} 张图，图就在卡片上`;
+    }
     return `画好了 ${out.count} 组数据的图，图就在卡片上`;
+  }
+
+  // 单张出图的结果：正文位置放的是图片本身（太长），这里给人话摘要
+  if (typeof out.image === 'string' && /^data:image\//i.test(out.image)) {
+    const kb = Math.round(out.image.length / 1024);
+    const dims = [out.size, out.ratio].filter((x) => typeof x === 'string').join(' / ');
+    return `图已经画好了${dims ? `（${dims}）` : ''}，约 ${kb} KB。点下面的「看大图」可以放大。`;
   }
 
   const v = out.content ?? out.text ?? out.result ?? out.body ?? out.answer;
@@ -51,7 +62,13 @@ export function readableOutput(out: Record<string, unknown> | undefined): string
 export function outputImage(out: Record<string, unknown> | undefined): string {
   if (out == null) return '';
   const img = out.image ?? out.imageUrl ?? out.chart ?? out.shown;
-  if (typeof img === 'string' && /^(https?:|data:image\/)/i.test(img)) return img;
+  // 认三种：http(s) 网址、图片数据（data:image/...）、以及占位用的矢量图数据
+  if (
+    typeof img === 'string' &&
+    (/^(https?:|data:image\/)/i.test(img) || /^data:image\/svg\+xml/i.test(img))
+  ) {
+    return img;
+  }
   return '';
 }
 

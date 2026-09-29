@@ -1,0 +1,462 @@
+/* ===== 宽弹窗 / 技能库 / 设置 ===== */
+
+/* ===================== 宽弹窗 / 画廊 ===================== */
+.modal--wide {
+  width: min(860px, 94vw);
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--sp-3);
+}
+.tpl-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-node);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+  text-align: left;
+  color: var(--text-primary);
+  transition: border-color var(--dur-fast), transform var(--dur-fast), background var(--dur-fast);
+}
+.tpl-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateY(-2px);
+}
+.tpl-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.tpl-card__name {
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  flex: 1;
+}
+.tpl-card__badge {
+  flex: none;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--st-warn) 16%, transparent);
+  color: var(--st-warn);
+  border: 1px solid color-mix(in srgb, var(--st-warn) 40%, transparent);
+}
+.tpl-card__desc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  flex: 1;
+}
+.tpl-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tpl-card__node {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  opacity: 0.85;
+}
+.tpl-card__cta {
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* 覆盖确认 */
+.confirm {
+  padding: var(--sp-2) 0;
+}
+.confirm__title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  margin-bottom: var(--sp-3);
+}
+.confirm__desc {
+  margin: 0 0 var(--sp-5);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.confirm__btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+/* ===================== 技能库 ===================== */
+.tabs {
+  display: flex;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border-hair);
+  padding-bottom: var(--sp-1);
+}
+.tab {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: var(--r-btn);
+}
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.tab.is-active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.toast-inline {
+  padding: 7px 12px;
+  border-radius: var(--r-btn);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+}
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.skill-card {
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-node);
+  background: var(--bg-panel-2);
+  padding: var(--sp-3);
+}
+.skill-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.skill-card__name {
+  font-weight: 600;
+  font-size: var(--fs-md);
+  flex: 1;
+}
+.skill-card__builtin {
+  flex: none;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.btn--tiny {
+  width: 26px;
+  height: 26px;
+}
+.skill-card__desc {
+  margin-top: 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.skill-card__toggle {
+  margin-top: 6px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  padding: 2px 0;
+}
+.skill-card__body {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3);
+  border-radius: 6px;
+  background: var(--bg-app);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.65;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* 上传区 */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  border-radius: var(--r-node);
+  border: 1px dashed var(--border-strong);
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.dropzone:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.divider-or {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+.divider-or::before,
+.divider-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-hair);
+}
+.modal__foot--inline {
+  border-top: none;
+  padding: 0;
+  justify-content: flex-start;
+}
+
+/* ===================== 设置里的「快速开始」与「云端保管箱」 ===================== */
+
+/* 锁定态的输入框：看着就是「不用你填」，而不是「填了没反应」 */
+.input[readonly] {
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+  cursor: default;
+}
+.input[readonly]:focus {
+  border-color: var(--border-hair);
+  box-shadow: none;
+  background: var(--bg-panel-2);
+}
+
+/* 设置里那些带文字的按钮：图标按钮的 26×26 撑不下字，这里放开 */
+.btn--tiny.is-text {
+  width: auto;
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--fs-xs);
+}
+
+/* ============================================================
+   自带的免费 AI：默认形态就是「一句话说清楚 + 无需任何填写」
+   所以这块刻意做得像一个「已开通」的状态卡，而不是一个表单。
+   ============================================================ */
+.builtin-ai {
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+}
+.builtin-ai--compact {
+  padding: 11px 14px;
+  margin-bottom: var(--sp-3);
+}
+.builtin-ai__badge {
+  display: inline-block;
+  padding: 2px 9px;
+  margin-bottom: 9px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.builtin-ai__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.builtin-ai--compact .builtin-ai__title {
+  font-size: var(--fs-sm);
+  margin-bottom: 3px;
+}
+.builtin-ai__desc {
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+.builtin-ai__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 9px;
+  font-size: var(--fs-sm);
+}
+.builtin-ai__label {
+  color: var(--text-tertiary);
+  flex: 0 0 68px;
+}
+.builtin-ai__value {
+  color: var(--text-primary);
+}
+.builtin-ai__tip {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--text-tertiary);
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.preset__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.preset__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-2);
+}
+/* 预设卡片：苹果那种「选中就描蓝边 + 淡蓝底」的观感 */
+.preset__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--r-input);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+  color: var(--text-primary);
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
+}
+.preset__card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+.preset__card.is-active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.preset__name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.preset__note {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.preset__hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+/* 保管箱折叠区 */
+.vault {
+  border-top: 1px solid var(--border-hair);
+  padding-top: var(--sp-3);
+}
+.vault__toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  padding: 2px 0;
+  text-align: left;
+}
+.vault__toggle:hover {
+  color: var(--text-primary);
+}
+.vault__toggle .field__hint {
+  font-weight: 400;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vault__arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 10px;
+  flex: none;
+}
+.vault__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-3);
+}
+.vault__actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.vault__ok,
+.vault__err {
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+  padding: 8px 10px;
+  border-radius: var(--r-input);
+  white-space: pre-wrap;
+}
+.vault__ok {
+  background: color-mix(in srgb, var(--st-success) 14%, transparent);
+  color: var(--text-primary);
+}
+.vault__err {
+  background: color-mix(in srgb, var(--st-error) 14%, transparent);
+  color: var(--text-primary);
+}
+.vault__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vault__items-title {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.vault__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--r-input);
+  background: var(--bg-panel-2);
+}
+.vault__item-name {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vault__help {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.settings__msg {
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  padding: 2px 0;
+}

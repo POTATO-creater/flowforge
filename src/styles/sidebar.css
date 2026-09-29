@@ -1,0 +1,198 @@
+/* ===== 左侧节点库 ===== */
+
+/* ===================== Sidebar 节点库 ===================== */
+.sidebar {
+  padding: var(--sp-4);
+}
+.sidebar__title {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-3);
+}
+
+/* ---- 搜索框 ---- */
+.sidebar__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp-3);
+}
+.sidebar__search-icon {
+  position: absolute;
+  left: 10px;
+  font-size: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+  line-height: 1;
+}
+.sidebar__search-input {
+  width: 100%;
+  padding: 8px 28px 8px 28px;
+  border-radius: var(--r-input);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast), background var(--dur-fast);
+}
+.sidebar__search-input::placeholder {
+  color: var(--text-muted);
+}
+.sidebar__search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-panel);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.sidebar__search-clear {
+  position: absolute;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.sidebar__search-clear:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* 搜索命中条数提示 */
+.sidebar__count {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-3);
+}
+
+/* ---- 可折叠的分组标题 ---- */
+.sidebar__title--btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-align: left;
+  transition: color var(--dur-fast);
+}
+.sidebar__title--btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+.sidebar__title--btn:disabled {
+  cursor: default;
+}
+.sidebar__chev {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform var(--dur-fast);
+  color: var(--text-muted);
+}
+.sidebar__chev.is-open {
+  transform: rotate(90deg);
+}
+.sidebar__count-badge {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-hair);
+  color: var(--text-muted);
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.palette__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-node);
+  border: 1px solid var(--border-hair);
+  background: var(--bg-panel-2);
+  cursor: grab;
+  transition: border-color var(--dur-fast), transform var(--dur-fast), background var(--dur-fast);
+  user-select: none;
+}
+.palette__item:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateX(2px);
+}
+.palette__item:active {
+  cursor: grabbing;
+}
+.palette__badge {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  /* 跟着主题走：亮色下节点色深、压白字；暗色下节点色浅、压深字 */
+  color: var(--badge-fg);
+}
+.palette__meta {
+  min-width: 0;
+}
+.palette__name {
+  font-weight: 600;
+  font-size: var(--fs-md);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* 「需要中转」小标记：提示这个节点可能要配中转才能访问某些网站 */
+.palette__flag {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+  color: var(--st-warn);
+  background: color-mix(in srgb, var(--st-warn) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--st-warn) 35%, transparent);
+  flex: none;
+}
+.palette__desc {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar__hint {
+  margin-top: var(--sp-5);
+  padding: var(--sp-3);
+  border-radius: var(--r-node);
+  border: 1px dashed var(--border-hair);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--text-muted);
+}

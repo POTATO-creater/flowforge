@@ -112,7 +112,7 @@ export async function callLLM(
   const url = `${base}/chat/completions`;
   const model = opts.model || settings.model;
   if (!settings.apiKey) {
-    throw new Error('还没填 AI 的密钥，去右上角设置里填一下（形如 sk- 开头那串）。');
+    throw new Error('自带的免费 AI 没接上（多半是网络问题）。检查一下网络，或者从设置里换成自己的 AI。');
   }
 
   const messages: ChatMessage[] =

@@ -47,7 +47,11 @@ export type NodeKind =
   | 'switch' // 分多条路
   | 'stop' // 出错就停
   // —— 看结果 ——
-  | 'watch'; // 显示面板：连到任意节点上，专门看它的某一项
+  | 'watch' // 显示面板：连到任意一个节点上，专门看它的某一项
+  // —— 出图 ——
+  | 'imageGen' // 画一张图：给一句描述，直接画出来
+  | 'imageEdit' // 照着改图：拿一张图，按描述改一改
+  | 'imageMix'; // 多图合成：把几张图按描述揉成一张
 
 export type RunStatus = 'idle' | 'running' | 'success' | 'error';
 
@@ -360,6 +364,41 @@ export interface WatchConfig {
   note: string; // 面板上显示的小标题，方便自己认
 }
 
+// ============================================================
+// 出图
+// ============================================================
+
+/**
+ * 尺寸档位。官方把「多大」和「什么形状」拆成两件事：
+ * size 管清晰度（1K/2K/3K/4K），ratio 管长宽比。
+ * 两者交叉出一组真实像素，界面上直接读这张表显示给人看。
+ */
+export type ImageSize = '1K' | '2K' | '3K' | '4K';
+export type ImageRatio = '1:1' | '3:4' | '4:3' | '16:9' | '9:16' | '2:3' | '3:2' | '21:9';
+
+/** 画一张图：给一句描述，直接画出来 */
+export interface ImageGenConfig {
+  prompt: string; // 想画成什么样，支持 {{变量}}
+  size: ImageSize;
+  ratio: ImageRatio;
+}
+
+/** 照着改图：拿一张图，按描述改一改 */
+export interface ImageEditConfig {
+  image: string; // 原图：可以填 {{上游节点.图片}}，也可以直接贴一段图片数据
+  prompt: string; // 想改成什么样，支持 {{变量}}
+  size: ImageSize;
+  ratio: ImageRatio;
+}
+
+/** 多图合成：把几张图按描述揉成一张 */
+export interface ImageMixConfig {
+  images: string; // 要合成哪几张，一行一张，最多 4 张
+  prompt: string; // 怎么合，支持 {{变量}}
+  size: ImageSize;
+  ratio: ImageRatio;
+}
+
 export type NodeConfig =
   | StartConfig
   | LLMConfig
@@ -399,7 +438,11 @@ export type NodeConfig =
   | WaitConfig
   | SwitchConfig
   | StopConfig
-  | WatchConfig;
+
+  | WatchConfig
+  | ImageGenConfig
+  | ImageEditConfig
+  | ImageMixConfig;
 
 /** 挂在 React Flow node.data 上的数据 */
 export interface FlowNodeData extends Record<string, unknown> {

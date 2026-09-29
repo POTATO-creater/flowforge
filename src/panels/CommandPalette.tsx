@@ -87,8 +87,8 @@ export function CommandPalette(props: CommandPaletteProps) {
       },
       {
         id: 'settings',
-        label: 'AI 接口设置',
-        hint: '填密钥 / 换模型',
+        label: 'AI 设置',
+        hint: '看现在用的是哪个 / 换成自己的',
         icon: <SettingsIcon size={18} />,
         run: props.onOpenSettings,
       },

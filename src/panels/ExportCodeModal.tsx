@@ -39,7 +39,7 @@ export function ExportCodeModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="modal__body">
           <p className="inspector__plain">
-            下面是一份能直接跑的 JavaScript（Node 18+）。AI / 联网节点走 fetch，本地节点直接算。带好自己的密钥再跑。
+            下面是一份能直接跑的 JavaScript（Node 18+）。导出时会自动带上你现在用的 AI 配置，存成文件后直接 <code>node</code> 跑就行。想换成自己的 AI，改文件开头那几行即可。
           </p>
           <pre
             className="logs__detail"

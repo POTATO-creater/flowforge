@@ -81,6 +81,9 @@ const MINIMAP_COLOR: Record<NodeKind, string> = {
   switch: 'var(--nt-switch)',
   stop: 'var(--nt-stop)',
   watch: 'var(--nt-watch)',
+  imageGen: 'var(--nt-imagegen)',
+  imageEdit: 'var(--nt-imageedit)',
+  imageMix: 'var(--nt-imagemix)',
 };
 
 function Editor() {
@@ -153,7 +156,44 @@ function Editor() {
     }
   }, []);
 
-  const pushLog = useCallback((e: LogEntry) => setLogs((prev) => [...prev, e]), []);
+  /*
+   * 开机静默同步一次 AI 配置。
+   *
+   * 界面已经先用「内置的那份」渲染出来了，所以这一步不会让页面卡住或闪一下；
+   * 它只是去云端问问「有没有更新的配置」，有就悄悄换上、没有就保持原样。
+   * 静默的意义：不弹提示、不转圈 —— 用户的感觉只有一个「打开就能用」。
+   */
+  const syncBuiltinAI = useFlowStore((s) => s.syncBuiltinAI);
+  useEffect(() => {
+    void syncBuiltinAI();
+  }, [syncBuiltinAI]);
+
+  // 日志可能来得很密（尤其开了流式之后）。每次都 [...prev, e] 会让开销随条数
+  // 平方增长，流程一长就拖慢整页。这里攒一小会儿再一次性落进 state：
+  // 人眼看着仍是「实时」，但重渲染次数降到几十次之一。
+  const logBuffer = useRef<LogEntry[]>([]);
+  const logFlushTimer = useRef<number>();
+
+  const pushLog = useCallback((e: LogEntry) => {
+    logBuffer.current.push(e);
+    if (logFlushTimer.current !== undefined) return;
+    const flush = () => {
+      const batch = logBuffer.current;
+      logBuffer.current = [];
+      logFlushTimer.current = undefined;
+      if (batch.length) setLogs((prev) => [...prev, ...batch]);
+    };
+    flush(); // 第一条立即落库，避免「点了跑没反应」的观感
+    logFlushTimer.current = window.setTimeout(flush, 60) as unknown as number;
+  }, []);
+
+  // 页面卸载前把没来得及落的日志清掉，避免定时器挂在卸载后的组件上
+  useEffect(
+    () => () => {
+      window.clearTimeout(logFlushTimer.current);
+    },
+    [],
+  );
 
   // 本地调试用：把 store 挂到 window，方便在浏览器控制台里检查画布状态
   useEffect(() => {
@@ -336,9 +376,9 @@ function Editor() {
       <div className="app__canvas">
         {noApiKey && (
           <div className="banner">
-            还没填 AI 的密钥，用到 AI 的节点跑不起来
+            自带的免费 AI 没接上（可能是网络问题）。用到 AI 的节点暂时跑不起来。
             <button className="banner__link" onClick={() => setShowSettings(true)}>
-              去填一下
+              看看怎么回事
             </button>
           </div>
         )}
