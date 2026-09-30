@@ -1,1 +1,184 @@
-�ƫ��0��
+/* ============================================================
+   内容展示类零件：Markdown 排版 / 通知气泡 / 崩溃兜底卡
+   ============================================================ */
+
+/* ---------- 1. Markdown（AI 答案的排版） ---------- */
+
+.md {
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.md--result {
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-node);
+  background: var(--bg-panel-2);
+  padding: var(--sp-3);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.md__p {
+  margin: 0 0 0.6em;
+}
+.md__p:last-child {
+  margin-bottom: 0;
+}
+
+.md__h {
+  margin: 0.9em 0 0.35em;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.md__h:first-child {
+  margin-top: 0;
+}
+h3.md__h { font-size: 1.05em; }
+h4.md__h { font-size: 1em; }
+h5.md__h, h6.md__h { font-size: 0.95em; color: var(--text-secondary); }
+
+.md__list {
+  margin: 0 0 0.6em;
+  padding-left: 1.4em;
+}
+.md__list li {
+  margin: 0.2em 0;
+}
+
+.md__code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg-panel-2));
+  border: 1px solid var(--border-hair);
+}
+
+.md__pre {
+  margin: 0.6em 0;
+  padding: var(--sp-3);
+  border-radius: var(--r-node);
+  background: var(--bg-code, #0f1117);
+  color: #e6e6e6;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.md__pre code {
+  font-family: var(--font-mono);
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.md__quote {
+  margin: 0.6em 0;
+  padding: 0.4em 0.9em;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 0 var(--r-btn) var(--r-btn) 0;
+  color: var(--text-secondary);
+}
+
+.md__hr {
+  border: none;
+  border-top: 1px solid var(--border-hair);
+  margin: 0.9em 0;
+}
+
+.md__table {
+  margin: 0.6em 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+  width: 100%;
+}
+.md__table th,
+.md__table td {
+  border: 1px solid var(--border-hair);
+  padding: 4px 8px;
+  text-align: left;
+}
+.md__table th {
+  background: var(--bg-panel-2);
+  font-weight: 600;
+}
+
+.md a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------- 2. 通知气泡的宿主 ---------- */
+
+.toast-host {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  animation: drawer-fade-in 0.16s ease-out;
+}
+
+.toast-host .toast-inline {
+  box-shadow: var(--sh-2, 0 6px 24px rgba(0, 0, 0, 0.16));
+  background: var(--bg-elevated, var(--bg-panel));
+  color: var(--text-primary);
+  border: 1px solid var(--border-hair);
+  max-width: min(86vw, 480px);
+}
+
+/* ---------- 3. 崩溃兜底卡 ---------- */
+
+.crash {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-app);
+  padding: var(--sp-4);
+}
+
+.crash__card {
+  max-width: 420px;
+  width: 100%;
+  padding: var(--sp-5);
+  border: 1px solid var(--border-hair);
+  border-radius: 16px;
+  background: var(--bg-panel);
+  box-shadow: var(--sh-2, 0 6px 24px rgba(0, 0, 0, 0.16));
+  text-align: center;
+}
+
+.crash__card h2 {
+  margin: 0 0 var(--sp-2);
+  font-size: 18px;
+}
+
+.crash__msg {
+  color: var(--st-error);
+  font-size: 13px;
+  word-break: break-all;
+  margin: 0 0 var(--sp-2);
+}
+
+.crash__tip {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 var(--sp-4);
+}
+
+.crash__btns {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+}

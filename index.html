@@ -1,1 +1,33 @@
-v�-ʗ��ia�iejx
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>FlowForge · AI 工作流编辑器</title>
+    <!--
+      主题引导：在首帧渲染前把主题定下来，避免暗色用户看到一瞬白屏（FOUC）。
+      刻意内联且同步执行——放外部文件会晚一拍，就来不及了。
+      取值与 src/store/flowStore.ts 里的 THEME_KEY / resolveTheme 保持一致。
+    -->
+    <script>
+      (function () {
+        var dark = false;
+        try {
+          var pref = localStorage.getItem('flowforge.theme') || 'system';
+          dark =
+            pref === 'dark' ||
+            (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        } catch (e) {
+          /* 读不到就按亮色走，CSS 里的 :root 默认值也是亮色，不会错 */
+        }
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      })();
+    </script>
+    <!-- 字体用系统自带的苹果字体栈（见 tokens.css），不再依赖外部字体服务 -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

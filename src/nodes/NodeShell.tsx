@@ -1,1 +1,183 @@
-Šjh®ÑÚÙ^>‹"¶*'~º&Ç'å£ëy§-Šjh®Û¬xGßyËn±ä­j×Ÿ®‰«y§-Šjh®Ûr¥à’Húè¥êí‰ëy§-6‡^~º&­æœ¶)©¢»mÊ—‘ºt­jÛ¬FéÈú®‰¿·*^²)©¢»ky§ZnWºÚnµÉb¦‹­¦ëH™¨~º&şX›şšŞ¾'°Šjh®Ğ¨º{T¥úè›ùboğ¨º{T¦)íz·Úqä¨º·©İ•àŞ~'l¶¸§‚V›z[-®)à¶Šl¶¸§ƒÿÂI+h¦)íz·Úqãhuä¡zYO®Šl•¦Ş–ËkŠx$ŠwKi·¥²Úâ(–ŠÕj»-®)à±é^r×nŠ%y©ìµ«n±§JÖ­ºÏÿ®éÑºr'~ˆZ±6«ë[¢‰^j{(º·±*.­Ç‡jwex7Ÿr¥v·§Eæœ´Ú{ÿÿv)›¢‰^jÿıÊ&¥«bnW²zÉèÿöëy©)¢)ínŠ%y©ŞÆš+µû§rØ¨œÚy(^–YZmédŠwKi·¥r‰h­V«±é^r×²Ö­ºÊî¬Mªàz
+import { Handle, Position } from '@xyflow/react';
+import { useEffect, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import type { RunStatus, RunInfo } from '../types';
+import { readableOutput, clip, outputImage } from '../lib/preview';
+import { CountUp } from '../lib/CountUp';
+
+interface SourceHandleDef {
+  id: string;
+  label?: string;
+  top: string; // CSS top ä½ç½®
+}
+
+interface NodeShellProps {
+  label: string;
+  kindLabel: string;
+  colorVar: string;
+  selected?: boolean;
+  status?: RunStatus;
+  /** è¯¥èŠ‚ç‚¹æœ¬æ¬¡è¿è¡Œçš„ä¿¡æ¯ï¼Œç”¨äºåœ¨å¡ç‰‡ä¸Šç›´æ¥æ˜¾ç¤ºç»“æœ */
+  run?: RunInfo;
+  hasTarget?: boolean;
+  sources?: SourceHandleDef[];
+  children?: ReactNode;
+  /** è¿è¡Œè§†å›¾ä¸‹æ˜¯å¦è¢«å‹æš—ï¼ˆè¿˜æ²¡è·‘åˆ° / è¢«è·³è¿‡ï¼‰ */
+  dim?: boolean;
+  /** æ‹–çº¿æ—¶ï¼šè¿™ä¸ªèŠ‚ç‚¹èƒ½ä¸èƒ½è¿ï¼ˆé«˜äº® / å˜ç°ï¼‰ */
+  compatible?: 'yes' | 'no';
+  /** æ˜¯å¦æ‰“äº†æ–­ç‚¹ */
+  breakpoint?: boolean;
+}
+
+export function NodeShell({
+  label,
+  kindLabel,
+  colorVar,
+  selected,
+  status,
+  run,
+  hasTarget = true,
+  sources = [{ id: 'out', top: '50%' }],
+  children,
+  dim,
+  compatible,
+  breakpoint,
+}: NodeShellProps) {
+  const st = status ?? 'idle';
+  const result = run?.status === 'success' ? readableOutput(run.output) : '';
+  const { text: shown, clipped } = clip(result, 160);
+  const chars = result.length;
+  // å‡ºå›¾è¿™ç±»ç»“æœæ˜¯ä¸€å¼ å›¾ç‰‡ï¼Œå¡ç‰‡ä¸Šç›´æ¥æŠŠå›¾è´´å‡ºæ¥ï¼Œä¸ç”¨å»åˆ«å¤„æ‰¾
+  const pic = run?.status === 'success' ? outputImage(run.output) : '';
+
+  // ã€Œå·²ç­‰ N ç§’ã€å®æ—¶è®¡æ—¶ï¼šåªåœ¨è·‘ç€çš„æ—¶å€™èµ°ç§’
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (run?.status !== 'running' || !run.startedAt) {
+      setElapsed(0);
+      return;
+    }
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - run.startedAt!) / 1000)));
+    tick();
+    const t = window.setInterval(tick, 1000);
+    return () => window.clearInterval(t);
+  }, [run?.status, run?.startedAt]);
+
+  // æµå¼å†…å®¹å¤ªé•¿æ—¶åªçœ‹æœ€æ–°çš„å°¾å·´ï¼ˆçœ‹æœ€æ–°çš„æ‰å¯¹ï¼Œæ—§çš„å¼€å¤´æ²¡äººå…³å¿ƒï¼‰
+  const partial = run?.status === 'running' ? run.partial ?? '' : '';
+  const partialTail =
+    partial.length > 220 ? `â€¦${partial.slice(-220)}` : partial;
+
+  return (
+    <div
+      className="node"
+      data-status={st}
+      data-selected={selected}
+      data-dim={dim ? 'true' : undefined}
+      data-compatible={compatible}
+      data-breakpoint={breakpoint ? 'true' : undefined}
+      style={{ '--node-color': `var(${colorVar})` } as CSSProperties}
+    >
+      {hasTarget && <Handle type="target" position={Position.Left} />}
+
+      <div className="node__head">
+        <span className="node__dot" style={{ background: `var(${colorVar})` }} />
+        <span className="node__kind">{kindLabel}</span>
+        <span className="node__title">{label}</span>
+        {run && run.status !== 'idle' && (
+          <span className="node__status" data-state={run.status}>
+            {run.status === 'running' && 'è·‘ä¸­'}
+            {run.status === 'success' && 'âœ“'}
+            {run.status === 'error' && 'âœ•'}
+          </span>
+        )}
+      </div>
+
+      <div className="node__body">
+        {children}
+
+        {/* è·‘å®Œä¹‹åï¼Œç»“æœç›´æ¥æ˜¾ç¤ºåœ¨å¡ç‰‡ä¸Šï¼Œä¸ç”¨å†å»åˆ«å¤„ç¿» */}
+        {run && run.status !== 'idle' && (
+          <div className="node__result" data-state={run.status}>
+            <div className="node__result-head">
+              <span className="node__result-label">
+                {run.status === 'running' && 'æ­£åœ¨è·‘â€¦'}
+                {run.status === 'success' && 'è·‘å¥½äº†'}
+                {run.status === 'error' && 'æ²¡è·‘é€š'}
+              </span>
+              {run.status === 'success' && typeof run.durationMs === 'number' && (
+                <span className="node__result-meta">
+                  {chars > 0 ? (
+                    <>
+                      <CountUp value={chars} suffix=" ä¸ªå­—" /> Â·{' '}
+                    </>
+                  ) : null}
+                  <CountUp value={run.durationMs} suffix=" æ¯«ç§’" />
+                </span>
+              )}
+            </div>
+
+            {run.status === 'success' && shown && (
+              <div className="node__result-text">
+                {shown}
+                {clipped && <span className="node__result-more">â€¦ï¼ˆè¿˜æœ‰æ›´å¤šï¼Œç‚¹å¼€å³ä¾§çœ‹å…¨æ–‡ï¼‰</span>}
+              </div>
+            )}
+
+            {/* ç»“æœæ˜¯å›¾ç‰‡å°±ç›´æ¥è´´å‡ºæ¥ */}
+            {pic && (
+              <a
+                className="node__result-img"
+                href={pic}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="ç‚¹ä¸€ä¸‹çœ‹å¤§å›¾"
+              >
+                <img src={pic} alt="è¿™æ¬¡è·‘å‡ºæ¥çš„å›¾" />
+              </a>
+            )}
+
+            {run.status === 'success' && !shown && !pic && (
+              <div className="node__result-text node__result-text--empty">ï¼ˆè¿™æ¬¡æ²¡æœ‰äº§å‡ºå†…å®¹ï¼‰</div>
+            )}
+
+            {run.status === 'error' && (
+              <div className="node__result-text node__result-text--error">{run.error}</div>
+            )}
+
+            {/* è·‘ç€çš„æ—¶å€™ï¼šä¸€å¥è¯è¿›åº¦ + å·²ç»è¹¦å‡ºæ¥çš„å­— + é—ªçƒå…‰æ ‡ */}
+            {run.status === 'running' && (
+              <>
+                {run.note && (
+                  <div className="node__result-note">
+                    {run.note}
+                    {elapsed > 0 && `ï¼Œå·²ç­‰ ${elapsed} ç§’`}
+                  </div>
+                )}
+                {partialTail && (
+                  <div className="node__result-text node__result-partial">
+                    {partialTail}
+                    <span className="node__cursor" />
+                  </div>
+                )}
+                <div className="node__result-bar" />
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {sources.map((s) => (
+        <Handle
+          key={s.id}
+          id={s.id}
+          type="source"
+          position={Position.Right}
+          style={{ top: s.top }}
+        />
+      ))}
+    </div>
+  );
+}
