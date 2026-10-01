@@ -90,6 +90,7 @@ const MINIMAP_COLOR: Record<NodeKind, string> = {
   imageGen: 'var(--nt-imagegen)',
   imageEdit: 'var(--nt-imageedit)',
   imageMix: 'var(--nt-imagemix)',
+  videoGen: 'var(--nt-videogen)',
 };
 
 function Editor() {

@@ -173,4 +173,45 @@ export const MEDIA_FIELDS: Partial<Record<NodeKind, NodeFieldSpec>> = {
       RATIO_FIELD,
     ],
   },
+
+  videoGen: {
+    plain: '把想拍的画面写成一句话，它做出一小段会动的视频。做视频比画图慢不少（通常要等一两分钟），跑起来耐心点。',
+    resultName: '视频',
+    fields: [
+      {
+        key: 'prompt',
+        label: '想拍什么',
+        type: 'textarea',
+        level: 'basic',
+        primary: true,
+        placeholder: '例：清晨的竹林，阳光从缝隙洒下来，一只熊猫慢悠悠地啃竹子，镜头慢慢推近',
+        hint: '写清楚画面里有什么、在动什么、什么氛围；说「镜头怎么动」（推近、绕一圈）效果更电影感',
+      },
+      {
+        key: 'duration',
+        label: '做多长',
+        type: 'select',
+        level: 'basic',
+        vars: false,
+        options: [
+          { value: '5', label: '5 秒（快，先试试看效果）' },
+          { value: '10', label: '10 秒（更完整，但要等更久）' },
+        ],
+        hint: '拿不准就先做 5 秒的，满意了再做长的',
+      },
+      {
+        key: 'ratio',
+        label: '什么形状',
+        type: 'select',
+        level: 'basic',
+        vars: false,
+        options: [
+          { value: '16:9', label: '宽屏 16:9（电脑上看、横版封面）' },
+          { value: '9:16', label: '长竖 9:16（手机短视频）' },
+          { value: '1:1', label: '正方形 1:1（社交平台方图）' },
+        ],
+        hint: '发手机短视频就选长竖那个',
+      },
+    ],
+  },
 };

@@ -422,3 +422,327 @@ export async function runImageMix(
   }
   return createImage(settings, { prompt, inputs: list, size, ratio }, signal, report);
 }
+
+// ============================================================
+// 生成视频
+//
+// 和出图是同一家人（同一个服务、同一把钥匙），但节奏完全不一样：
+//   出图是「当场画好当场给」，视频是「先收单，做好了去问，好了去取」。
+//   做一小段视频通常要一两分钟甚至更久，所以进度提示要跟得上。
+//
+// 【端点形状是怎么确认的】2026-10-01 用「404=没这条路 / 401=有这条路
+// 但钥匙不被收」的区别探出来的（当时业务钥匙恰好被网关拒绝，反而方便
+// 只看路径是否存在）：
+//   POST /v1/videos              → 401（存在）收单
+//   GET  /v1/videos/{id}         → 401（存在）问进度
+//   GET  /v1/videos/{id}/content → 401（存在）取成片
+//   其余 videos/generations、videos/tasks 之类全是 404（不存在）。
+// 和业界通行的「视频任务」约定一致。请求体字段名（seconds 等）等
+// 钥匙恢复后要实测校准，所以这里做了多重形态兼容。
+// ============================================================
+
+/**
+ * 做视频专用的模型 —— 同样【不能】拿聊天模型来顶替：
+ * 网关模型列表里确认存在 agnes-video-2.5 / agnes-video-2.5-flash /
+ * agnes-video-v2.0 三档，选 flash 这一档（最快）。
+ */
+const VIDEO_MODEL = 'agnes-video-2.5-flash';
+
+/** 形状 → 服务端认的像素写法 */
+const VIDEO_SIZE: Record<string, string> = {
+  '16:9': '1280x720',
+  '9:16': '720x1280',
+  '1:1': '960x960',
+};
+
+/** 视频结果：可直接塞进 <video> 的完整数据（data:video/mp4;base64,...） */
+export interface VideoResult {
+  video: string;
+}
+
+/** 一次做视频请求要带的东西 */
+export interface VideoRequest {
+  prompt: string;
+  /** 多长（秒），形如 '5' */
+  duration: string;
+  /** 什么形状，'16:9' | '9:16' | '1:1' */
+  ratio: string;
+}
+
+/** 做视频比画图慢得多，等的时间上限也放宽（10 分钟） */
+const VIDEO_TIMEOUT_MS = 600_000;
+
+/**
+ * 大文件转数据一律走「字节 → 内容编码」，不用浏览器那个「文件读取器」：
+ * 前者在浏览器和测试环境里都能跑，后者测试环境没有。
+ */
+function bytesToDataUrl(buf: ArrayBuffer, mime: string): string {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const chunk = 0x8000; // 分块转，避免一次摊开几十万个字符
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  const b64 = btoa(bin);
+  return `data:${mime || 'application/octet-stream'};base64,${b64}`;
+}
+
+/** 把进度翻成人话 */
+function statusNote(status: string, waited: number): string {
+  const s = (status || '').toLowerCase();
+  if (/queu|pending|等待|排队/.test(s)) return `排上队了，还没开始做，已等 ${waited} 秒…`;
+  if (/running|process|progress|生成中|制作|进行/.test(s)) return `正在做视频，已等 ${waited} 秒…（视频比图慢，别着急）`;
+  if (/complet|succeed|success|完成|成功/.test(s)) return '做好了，正在把视频收下来…';
+  return `还在做，已等 ${waited} 秒…`;
+}
+
+/** 判断一个进度值是不是「做好了」 */
+function isDone(status: string): boolean {
+  return /complet|succeed|success|完成|成功/i.test(status);
+}
+
+/** 判断一个进度值是不是「做砸了」 */
+function isFailed(status: string): boolean {
+  return /fail|error|cancel|失败|出错|取消/i.test(status);
+}
+
+/**
+ * 动手做视频：收单 → 反复问进度 → 取成片。
+ * 收单和问进度之间兼容各种响应形态（有的直接给结果，有的给任务号）。
+ */
+export async function createVideo(
+  settings: ApiSettings,
+  req: VideoRequest,
+  signal: AbortSignal,
+  report?: NodeReporter,
+): Promise<VideoResult> {
+  if (!settings.apiKey) {
+    throw fail('还没填 AI 的钥匙，去右上角设置里填一下（形如 sk- 开头那串）。', 'submit');
+  }
+  const prompt = (req.prompt ?? '').trim();
+  if (!prompt) {
+    throw fail('还没写要拍什么。把想要的画面描述一句，再跑一次。', 'submit');
+  }
+
+  const base = settings.baseURL.replace(/\/+$/, '');
+  const size = VIDEO_SIZE[req.ratio] ?? VIDEO_SIZE['16:9'];
+  const seconds = /^\d+$/.test(req.duration) ? req.duration : '5';
+
+  const payload: Record<string, unknown> = {
+    model: VIDEO_MODEL, // 做视频必须用做视频的模型，聊天/画图的模型对方不收
+    prompt,
+    seconds,
+    size,
+  };
+
+  report?.reset();
+  report?.note('已经把单子递过去了，等它接…');
+
+  let resp: Response;
+  try {
+    resp = await fetch(`${base}/videos`, {
+      method: 'POST',
+      signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') throw fail('已经停下了。', 'submit');
+    throw fail('连做视频的服务都没连上。检查一下网络，或者稍后再试。', 'submit');
+  }
+
+  if (!resp.ok) {
+    throw fail(await explainVideoHttpError(resp), 'submit');
+  }
+
+  const first = (await resp.json().catch(() => null)) as Record<string, unknown> | null;
+
+  // —— 形态一：当场就把成片给了（少见，但顺手接住）——
+  const direct = await pickVideoFromPayload(first, signal, report);
+  if (direct) return { video: direct };
+
+  // —— 形态二：给了任务号，去问进度 ——
+  const taskId =
+    typeof first?.id === 'string'
+      ? first.id
+      : typeof first?.task_id === 'string'
+        ? first.task_id
+        : '';
+  if (!taskId) {
+    throw fail('这次没做出视频来（对方没给单号也没给成片），换个说法再试试。', 'submit');
+  }
+
+  return await pollVideo(base, taskId, settings, signal, report);
+}
+
+/** 反复去问「视频好了没」，好了就取回来 */
+async function pollVideo(
+  base: string,
+  taskId: string,
+  settings: ApiSettings,
+  signal: AbortSignal,
+  report?: NodeReporter,
+): Promise<VideoResult> {
+  const started = Date.now();
+  const waitMs = [2000, 3000, 5000, 5000, 8000];
+  let n = 0;
+  const look = `${base}/videos/${encodeURIComponent(taskId)}`;
+
+  for (;;) {
+    if (signal.aborted) throw fail('已经停下了。', 'poll');
+    const waited = Math.round((Date.now() - started) / 1000);
+    if (waited * 1000 > VIDEO_TIMEOUT_MS) {
+      throw fail(
+        '等了快 10 分钟还没做好。视频本来就慢，可以等会儿直接再跑一次；或者把时长调短一点。',
+        'poll',
+      );
+    }
+
+    const delay = waitMs[Math.min(n, waitMs.length - 1)];
+    n++;
+    await sleep(delay, signal);
+    if (signal.aborted) throw fail('已经停下了。', 'poll');
+
+    let resp: Response;
+    try {
+      resp = await fetch(look, {
+        headers: { Authorization: `Bearer ${settings.apiKey}` },
+        signal,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') throw fail('已经停下了。', 'poll');
+      continue; // 问一次失败不算数，接着问
+    }
+    if (!resp.ok) continue;
+
+    const j = (await resp.json().catch(() => null)) as Record<string, unknown> | null;
+    const status = String(j?.status ?? '');
+    report?.note(statusNote(status, waited));
+
+    if (isFailed(status)) {
+      const why =
+        typeof (j?.error as Record<string, unknown>)?.message === 'string'
+          ? String((j?.error as Record<string, unknown>).message)
+          : '';
+      throw fail(why ? `这次没做出来：${why}\n换个说法或换个时长再试试。` : '这次没做出来，换个说法再试试。', 'poll');
+    }
+
+    // 好了：先看回复里有没有直接给视频，没有就去取成片
+    if (isDone(status) || !status) {
+      const got = await pickVideoFromPayload(j, signal, report);
+      if (got) return { video: got };
+      report?.note('做好了，正在把视频收下来…');
+      const raw = await downloadVideoContent(base, taskId, settings, signal);
+      return { video: raw };
+    }
+  }
+}
+
+/**
+ * 各种回复形态里把视频找出来：
+ *   b64_json / video / url（data: 或 http）/ data[0].xxx 同样一套。
+ */
+async function pickVideoFromPayload(
+  payload: Record<string, unknown> | null,
+  signal: AbortSignal,
+  report?: NodeReporter,
+): Promise<string> {
+  if (!payload) return '';
+  const items: Record<string, unknown>[] = Array.isArray(payload.data)
+    ? (payload.data as Record<string, unknown>[])
+    : [payload];
+
+  for (const it of items) {
+    const b64 = it?.b64_json;
+    if (typeof b64 === 'string' && b64.length > 100) {
+      return b64.startsWith('data:') ? b64 : `data:video/mp4;base64,${b64}`;
+    }
+    for (const key of ['video', 'video_url', 'url', 'content_url']) {
+      const v = it?.[key];
+      if (typeof v !== 'string' || !v) continue;
+      if (/^data:video\//i.test(v)) return v;
+      if (/^https?:\/\//i.test(v)) {
+        report?.note('做好了，正在把视频收下来…');
+        return await fetchVideoToDataUrl(v, signal);
+      }
+    }
+  }
+  return '';
+}
+
+/** 把一个视频网址收成数据（跟图不一样：视频网址不收成数据，后面谁也用不了） */
+async function fetchVideoToDataUrl(url: string, signal: AbortSignal): Promise<string> {
+  let resp: Response;
+  try {
+    resp = await fetch(url, { signal });
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') throw fail('已经停下了。', 'download');
+    throw fail('视频存放的地方不让网页直接读，收不回来。再跑一次试试。', 'download');
+  }
+  if (!resp.ok) {
+    throw fail(`视频收不回来（对方返回 ${resp.status}），再跑一次试试。`, 'download');
+  }
+  const blob = await resp.blob();
+  return bytesToDataUrl(await blob.arrayBuffer(), blob.type || 'video/mp4');
+}
+
+/** 从「取成片」的路子拿视频（回复里不带网址时的标准做法） */
+async function downloadVideoContent(
+  base: string,
+  taskId: string,
+  settings: ApiSettings,
+  signal: AbortSignal,
+): Promise<string> {
+  return withRetry(async () => {
+    const resp = await fetch(`${base}/videos/${encodeURIComponent(taskId)}/content`, {
+      headers: { Authorization: `Bearer ${settings.apiKey}` },
+      signal,
+    });
+    if (!resp.ok) throw fail(`成片取不回来（对方返回 ${resp.status}）。`, 'download');
+    const blob = await resp.blob();
+    return bytesToDataUrl(await blob.arrayBuffer(), blob.type || 'video/mp4');
+  }, 'download', signal);
+}
+
+/** 生成视频：描述 + 时长 + 形状 */
+export async function runVideoGen(
+  settings: ApiSettings,
+  prompt: string,
+  duration: string,
+  ratio: string,
+  signal: AbortSignal,
+  report?: NodeReporter,
+): Promise<VideoResult> {
+  return createVideo(settings, { prompt, duration, ratio }, signal, report);
+}
+
+/** 做视频这边的报错翻话术（跟出图一套风格，但说法是视频的） */
+async function explainVideoHttpError(resp: Response): Promise<string> {
+  let detail = '';
+  try {
+    const j = await resp.json();
+    detail = String(j?.error?.message ?? j?.message ?? '');
+  } catch {
+    /* 对方没给可解析的内容，用状态码兜底 */
+  }
+  if (resp.status === 401 || resp.status === 403) {
+    return '做视频的钥匙现在不被收（可能是免费额度用完了）。如果聊天和画图也不行了，就是同一件事——等额度恢复，或者换一把钥匙。';
+  }
+  if (resp.status === 429) {
+    return '现在做视频的人太多，被暂时挡住了。等几分钟再试。';
+  }
+  if (resp.status === 400) {
+    const brief = detail.replace(/\s*\(request id:[^)]*\)\s*/gi, '').trim();
+    return `这次的要求对方不接受：${brief || '描述、时长或形状可能不合规'}\n换个说法或换个时长再试试。`;
+  }
+  if (resp.status === 404) {
+    return '做视频的入口暂时不在了（服务可能在调整）。过段时间再试。';
+  }
+  if (resp.status >= 500) {
+    return '做视频的服务自己出了点状况，不是你的问题。等一会儿再试。';
+  }
+  return `视频没做成：${resp.status}${detail ? ` —— ${detail}` : ''}`;
+}

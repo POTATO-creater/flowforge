@@ -2,7 +2,7 @@ import { Handle, Position } from '@xyflow/react';
 import { useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { RunStatus, RunInfo } from '../types';
-import { readableOutput, clip, outputImage } from '../lib/preview';
+import { readableOutput, clip, outputImage, outputVideo } from '../lib/preview';
 import { CountUp } from '../lib/CountUp';
 import { ImageViewer } from '../components/ImageViewer';
 
@@ -51,6 +51,8 @@ export function NodeShell({
   const chars = result.length;
   // 出图这类结果是一张图片，卡片上直接把图贴出来，不用去别处找
   const pic = run?.status === 'success' ? outputImage(run.output) : '';
+  // 做视频这类结果是一段视频，卡片上直接放一个能播的
+  const vid = run?.status === 'success' ? outputVideo(run.output) : '';
 
   // 「已等 N 秒」实时计时：只在跑着的时候走秒
   const [elapsed, setElapsed] = useState(0);
@@ -144,7 +146,14 @@ export function NodeShell({
               </button>
             )}
 
-            {run.status === 'success' && !shown && !pic && (
+            {/* 结果是视频就直接放一个能播的（不用跳去别处看） */}
+            {vid && (
+              <div className="node__result-video" onClick={(e) => e.stopPropagation()}>
+                <video src={vid} controls preload="metadata" playsInline />
+              </div>
+            )}
+
+            {run.status === 'success' && !shown && !pic && !vid && (
               <div className="node__result-text node__result-text--empty">（这次没有产出内容）</div>
             )}
 

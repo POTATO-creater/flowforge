@@ -9,7 +9,7 @@ import {
 } from '../fieldDefs';
 import type { FieldDef, NodeConfig, FlowNodeData, NodeKind } from '../types';
 import { TrashIcon, SparkIcon, ArrowLeftIcon, PlayIcon, PlusIcon } from '../lib/icons';
-import { readableOutput, outputImage } from '../lib/preview';
+import { readableOutput, outputImage, outputVideo } from '../lib/preview';
 import { renderMarkdown } from '../lib/markdown';
 import { ImageViewer } from '../components/ImageViewer';
 
@@ -69,6 +69,8 @@ export function Inspector({ onRunSingle }: { onRunSingle?: (id: string) => void 
   const primary = primaryFieldOf(kind);
   // 这次结果如果是图，就真把图显示出来
   const pic = node.data.run?.status === 'success' ? outputImage(node.data.run.output) : '';
+  // 这次结果如果是一段视频，就真把视频显示出来
+  const vid = node.data.run?.status === 'success' ? outputVideo(node.data.run.output) : '';
   // 这次结果如果是一段文字，就按排版显示（markdown）
   const textResult = (() => {
     if (node.data.run?.status !== 'success' || pic) return '';
@@ -375,7 +377,17 @@ export function Inspector({ onRunSingle }: { onRunSingle?: (id: string) => void 
               </button>
             )}
 
-            {node.data.run.status === 'success' && !pic && textResult ? (
+            {/* 结果是一段视频，就真放一个能播的；旁附一个存下来的按钮 */}
+            {node.data.run.status === 'success' && vid && (
+              <div className="logs__video">
+                <video src={vid} controls preload="metadata" playsInline />
+                <a className="logs__video-save" href={vid} download="flowforge.mp4">
+                  存到电脑
+                </a>
+              </div>
+            )}
+
+            {node.data.run.status === 'success' && !pic && !vid && textResult ? (
               /* 文字结果按排版显示（AI 的标题/列表/表格都能看） */
               <div className="md md--result">{renderMarkdown(textResult)}</div>
             ) : (
@@ -384,7 +396,9 @@ export function Inspector({ onRunSingle }: { onRunSingle?: (id: string) => void 
                   ? `出错了：${node.data.run.error}`
                   : pic
                     ? '图片就在上面，点一下放大看。'
-                    : prettyOutput(node.data.run.output)}
+                    : vid
+                      ? '视频就在上面，直接点播放键看。'
+                      : prettyOutput(node.data.run.output)}
               </pre>
             )}
           </div>

@@ -242,6 +242,20 @@
   object-fit: contain;
   background: #fff;
 }
+/* 结果是视频：卡片上直接放一个能播的 */
+.node__result-video {
+  margin-top: 6px;
+  border-radius: var(--r-btn);
+  overflow: hidden;
+  border: 1px solid var(--border-hair);
+  background: #000;
+}
+.node__result-video video {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  background: #000;
+}
 /* 运行中的流动进度条 */
 .node__result-bar {
   height: 3px;

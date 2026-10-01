@@ -47,6 +47,7 @@ import type {
   ImageGenConfig,
   ImageEditConfig,
   ImageMixConfig,
+  VideoGenConfig,
 } from '../types';
 import { useFlowStore } from '../store/flowStore';
 import { toast } from '../lib/toast';
@@ -95,7 +96,7 @@ import {
 } from './text';
 
 import { mockOutput } from './exec/mock';
-import { runImageEdit, runImageGen, runImageMix } from './exec/media';
+import { runImageEdit, runImageGen, runImageMix, runVideoGen } from './exec/media';
 import type { LogEntry, NodeReporter } from './exec/types';
 import { callLLMStream } from './llm';
 import {
@@ -976,6 +977,23 @@ async function executeNode(
         count: picked.length,
         revised: r.revised,
       };
+    }
+
+    case 'videoGen': {
+      const c = config as VideoGenConfig;
+      const prompt = interpolate(c.prompt, ctx).trim();
+      if (!prompt) throw new Error('这个节点还没写要拍什么。');
+
+      onLog({
+        t: now(),
+        tag: 'info',
+        msg: `  开始做视频（${c.duration} 秒 / ${c.ratio}）…做视频比画图慢，先喝口水`,
+      });
+      const r = await runVideoGen(settings, prompt, c.duration, c.ratio, signal, report);
+      const mb = (r.video.length / 1024 / 1024).toFixed(1);
+      onLog({ t: now(), tag: 'ok', msg: `  做好了，约 ${mb} MB，卡片上直接能放` });
+
+      return { video: r.video, prompt, duration: c.duration, ratio: c.ratio };
     }
 
     // ==================== 流程控制补充 ====================

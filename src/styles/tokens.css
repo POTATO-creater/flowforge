@@ -106,6 +106,7 @@
   --nt-imagegen: #d6338c;
   --nt-imageedit: #bf2fa8;
   --nt-imagemix: #9b2fc4;
+  --nt-videogen: #6a35d9;
 
   /* —— 字体：苹果系统字体栈（无外网依赖）—— */
   --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue',
@@ -255,6 +256,7 @@
   --nt-imagegen: #ff8fc8;
   --nt-imageedit: #e88ce0;
   --nt-imagemix: #c98cf0;
+  --nt-videogen: #b48cf5;
 
   /* —— 阴影：暗色下加深 —— */
   --sh-1: 0 1px 3px rgba(0, 0, 0, 0.4);

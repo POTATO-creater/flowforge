@@ -314,6 +314,7 @@ const EXPORT_HANDLED: Record<NodeKind, true> = {
   imageGen: true,
   imageEdit: true,
   imageMix: true,
+  videoGen: true,
 };
 // 只是让 TypeScript 别把这张表当成未使用变量，同时给未来留一个好改的落点
 void EXPORT_HANDLED;

@@ -33,6 +33,15 @@ export function readableOutput(out: Record<string, unknown> | undefined): string
     return `图已经画好了${dims ? `（${dims}）` : ''}，约 ${kb} KB。点下面的「看大图」可以放大。`;
   }
 
+  // 生成视频的结果：正文位置放的是视频本身（太大），给人话摘要
+  if (typeof out.video === 'string' && /^data:video\//i.test(out.video)) {
+    const mb = (out.video.length / 1024 / 1024).toFixed(1);
+    const dims = [out.duration ? `${out.duration} 秒` : '', out.ratio]
+      .filter((x) => typeof x === 'string' && x)
+      .join(' / ');
+    return `视频已经做好了${dims ? `（${dims}）` : ''}，约 ${mb} MB，就在卡片上直接播放。`;
+  }
+
   const v = out.content ?? out.text ?? out.result ?? out.body ?? out.answer;
   if (typeof v === 'string') return v;
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
@@ -69,6 +78,17 @@ export function outputImage(out: Record<string, unknown> | undefined): string {
   ) {
     return img;
   }
+  return '';
+}
+
+/**
+ * 结果里如果是一段视频，把视频数据拿出来，好让界面直接播放。
+ * 目前只有「生成视频」节点产出 video 字段。
+ */
+export function outputVideo(out: Record<string, unknown> | undefined): string {
+  if (out == null) return '';
+  const v = out.video ?? out.videoUrl;
+  if (typeof v === 'string' && /^(https?:|data:video\/)/i.test(v)) return v;
   return '';
 }
 

@@ -558,6 +558,20 @@ export function FlowNode({ data, selected }: NodeProps<FlowNodeType>) {
         </NodeShell>
       );
 
+    // ==================== 生成视频 ====================
+
+    case 'videoGen':
+      return (
+        <NodeShell {...shell('影')}>
+          <div style={{ marginBottom: 6 }}>
+            <span className="tag">{`${S(cfg, 'duration') || '5'} 秒 · ${S(cfg, 'ratio') || '16:9'}`}</span>
+          </div>
+          <div className="node__preview">
+            {S(cfg, 'prompt') || '还没写要拍什么'}
+          </div>
+        </NodeShell>
+      );
+
     default:
       // 漏写 case 会在这里编译失败，而不是运行时卡片空白
       return assertNever(data.kind, 'FlowNode');

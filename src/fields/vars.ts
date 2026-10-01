@@ -63,6 +63,7 @@ export const VAR_FIELD: Record<NodeKind, string> = {
   imageGen: '图片',
   imageEdit: '图片',
   imageMix: '图片',
+  videoGen: '视频',
 };
 
 /**
@@ -113,6 +114,7 @@ export const RAW_VAR_FIELD: Record<NodeKind, string> = {
   imageGen: 'image',
   imageEdit: 'image',
   imageMix: 'image',
+  videoGen: 'video',
 };
 
 /** 节点内可用于「套用一个技能」的字段（含长期要求的节点） */

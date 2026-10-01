@@ -51,7 +51,9 @@ export type NodeKind =
   // —— 出图 ——
   | 'imageGen' // 画一张图：给一句描述，直接画出来
   | 'imageEdit' // 照着改图：拿一张图，按描述改一改
-  | 'imageMix'; // 多图合成：把几张图按描述揉成一张
+  | 'imageMix' // 多图合成：把几张图按描述揉成一张
+  // —— 生成视频 ——
+  | 'videoGen'; // 生成视频：给一句描述，直接做出一小段视频
 
 export type RunStatus = 'idle' | 'running' | 'success' | 'error';
 
@@ -405,6 +407,20 @@ export interface ImageMixConfig {
   ratio: ImageRatio;
 }
 
+// ============================================================
+// 生成视频
+// ============================================================
+
+/** 视频时长档位（单位：秒）。做成字符串是为了和服务端约定直接对上 */
+export type VideoDuration = '5' | '10';
+
+/** 生成视频：给一句描述，做出一小段会动的视频 */
+export interface VideoGenConfig {
+  prompt: string; // 想拍成什么样，支持 {{变量}}
+  duration: VideoDuration; // 多长（秒）
+  ratio: '16:9' | '9:16' | '1:1'; // 什么形状
+}
+
 export type NodeConfig =
   | StartConfig
   | LLMConfig
@@ -448,7 +464,8 @@ export type NodeConfig =
   | WatchConfig
   | ImageGenConfig
   | ImageEditConfig
-  | ImageMixConfig;
+  | ImageMixConfig
+  | VideoGenConfig;
 
 /** 挂在 React Flow node.data 上的数据 */
 export interface FlowNodeData extends Record<string, unknown> {

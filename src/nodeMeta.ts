@@ -134,6 +134,21 @@ export const NODE_METAS: Record<NodeKind, NodeMeta> = {
     }),
   },
 
+  videoGen: {
+    kind: 'videoGen',
+    name: '生成视频',
+    desc: '给一句描述，做出一小段视频',
+    plain: '把你想拍的画面写成一句话，它会做出一小段会动的视频。做视频比画图慢不少，跑起来多等等它。',
+    badge: '影',
+    colorVar: '--nt-videogen',
+    group: 'ai',
+    defaultConfig: () => ({
+      prompt: '',
+      duration: '5' as const,
+      ratio: '16:9' as const,
+    }),
+  },
+
   tool: {
     kind: 'tool',
     name: '访问网址',
@@ -643,9 +658,10 @@ export const NEXT_SUGGESTIONS: Partial<Record<NodeKind, NodeKind[]>> = {
   rss: ['llm', 'output', 'watch'],
   fact: ['llm', 'output', 'watch'],
   mcpFetch: ['llm', 'markdown', 'splitout', 'watch'],
-  imageGen: ['imageEdit', 'imageMix', 'output', 'watch'],
+  imageGen: ['imageEdit', 'imageMix', 'videoGen', 'output'],
   imageEdit: ['imageMix', 'imageGen', 'output', 'watch'],
-  imageMix: ['imageEdit', 'output', 'watch'],
+  imageMix: ['imageEdit', 'imageGen', 'output', 'watch'],
+  videoGen: ['output', 'watch'],
   chart: ['output', 'watch'],
   pick: ['output', 'llm', 'watch'],
   filter: ['output', 'llm', 'watch'],
