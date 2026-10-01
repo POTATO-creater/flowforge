@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { RunStatus, RunInfo } from '../types';
 import { readableOutput, clip, outputImage } from '../lib/preview';
 import { CountUp } from '../lib/CountUp';
+import { ImageViewer } from '../components/ImageViewer';
 
 interface SourceHandleDef {
   id: string;
@@ -69,6 +70,9 @@ export function NodeShell({
   const partialTail =
     partial.length > 220 ? `…${partial.slice(-220)}` : partial;
 
+  // 点小图 -> 页内放大看（数据图不能新标签打开，浏览器会拦）
+  const [viewing, setViewing] = useState(false);
+
   return (
     <div
       className="node"
@@ -125,18 +129,19 @@ export function NodeShell({
               </div>
             )}
 
-            {/* 结果是图片就直接贴出来 */}
+            {/* 结果是图片就直接贴出来；点一下在页内放大看 */}
             {pic && (
-              <a
+              <button
+                type="button"
                 className="node__result-img"
-                href={pic}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                title="点一下看大图"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewing(true);
+                }}
+                title="点一下放大看"
               >
                 <img src={pic} alt="这次跑出来的图" />
-              </a>
+              </button>
             )}
 
             {run.status === 'success' && !shown && !pic && (
@@ -178,6 +183,11 @@ export function NodeShell({
           style={{ top: s.top }}
         />
       ))}
+
+      {/* 放大看图（渲染到页面最上层，不受画布裁剪） */}
+      {viewing && pic && (
+        <ImageViewer src={pic} title={label} onClose={() => setViewing(false)} />
+      )}
     </div>
   );
 }

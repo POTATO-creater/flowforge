@@ -217,13 +217,17 @@
 .node__result-more {
   color: var(--text-muted);
 }
-/* 结果是图片：卡片上直接把图贴出来 */
+/* 结果是图片：卡片上直接把图贴出来（button：点击弹页内灯箱，不是跳链接） */
 .node__result-img {
   display: block;
+  width: 100%;
   margin-top: 6px;
+  padding: 0;
   border-radius: var(--r-btn);
   overflow: hidden;
   border: 1px solid var(--border-hair);
+  background: none;
+  font: inherit;
   cursor: zoom-in;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }

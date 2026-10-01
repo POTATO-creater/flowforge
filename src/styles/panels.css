@@ -84,15 +84,18 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
-/* 右侧面板里的图片结果 */
+/* 右侧面板里的图片结果（button：点击弹页内灯箱，不是跳链接） */
 .logs__image {
   display: block;
   position: relative;
+  width: 100%;
   margin-bottom: 8px;
+  padding: 0;
   border-radius: var(--r-btn);
   overflow: hidden;
   border: 1px solid var(--border-hair);
   background: #fff;
+  font: inherit;
   cursor: zoom-in;
   transition: border-color var(--dur-fast);
 }

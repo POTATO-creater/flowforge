@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { useFlowStore } from '../store/flowStore';
-import { NODE_METAS, suggestNext } from '../nodeMeta';
+import { useFlowStore } from '../store/flowStore';import { NODE_METAS, suggestNext } from '../nodeMeta';
 import {
   NODE_FIELDS,
   VAR_FIELD,
@@ -12,6 +11,7 @@ import type { FieldDef, NodeConfig, FlowNodeData, NodeKind } from '../types';
 import { TrashIcon, SparkIcon, ArrowLeftIcon, PlayIcon, PlusIcon } from '../lib/icons';
 import { readableOutput, outputImage } from '../lib/preview';
 import { renderMarkdown } from '../lib/markdown';
+import { ImageViewer } from '../components/ImageViewer';
 
 /** 上游节点信息：用于「把上游结果放进来」按钮 */
 interface UpstreamRef {
@@ -37,6 +37,8 @@ export function Inspector({ onRunSingle }: { onRunSingle?: (id: string) => void 
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [skillId, setSkillId] = useState('');
+  // 点图放大看（数据图不能新标签打开，浏览器会拦）
+  const [viewingPic, setViewingPic] = useState(false);
   // 当前聚焦的字段，决定「上游结果」按钮插到哪个框里
   const [focusField, setFocusField] = useState<string>('');
   const fieldRefs = useRef<Record<string, HTMLTextAreaElement | HTMLInputElement | null>>({});
@@ -360,18 +362,17 @@ export function Inspector({ onRunSingle }: { onRunSingle?: (id: string) => void 
               </span>
             </span>
 
-            {/* 结果是一张图，就真把图放出来，而不是只给一句话 */}
+            {/* 结果是一张图，就真把图放出来，而不是只给一句话；点一下页内放大 */}
             {node.data.run.status === 'success' && pic && (
-              <a
+              <button
+                type="button"
                 className="logs__image"
-                href={pic}
-                target="_blank"
-                rel="noreferrer"
-                title="点一下看大图（在新标签打开）"
+                onClick={() => setViewingPic(true)}
+                title="点一下放大看"
               >
                 <img src={pic} alt="这次跑出来的图" />
-                <span className="logs__image-tip">点图可以看大图</span>
-              </a>
+                <span className="logs__image-tip">点图可以放大看，还能存到电脑</span>
+              </button>
             )}
 
             {node.data.run.status === 'success' && !pic && textResult ? (
@@ -382,13 +383,18 @@ export function Inspector({ onRunSingle }: { onRunSingle?: (id: string) => void 
                 {node.data.run.error
                   ? `出错了：${node.data.run.error}`
                   : pic
-                    ? '图片就在上面，点一下能看大图。'
+                    ? '图片就在上面，点一下放大看。'
                     : prettyOutput(node.data.run.output)}
               </pre>
             )}
           </div>
         )}
       </div>
+
+      {/* 放大看图（渲染到页面最上层） */}
+      {viewingPic && pic && (
+        <ImageViewer src={pic} title={node.data.label} onClose={() => setViewingPic(false)} />
+      )}
     </aside>
   );
 }
