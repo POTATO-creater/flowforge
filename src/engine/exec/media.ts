@@ -39,6 +39,15 @@ export interface ImageResult {
 /** 出错时抛出来的东西，带上「是不是等太久」这个信息，好让上层给不同的话术 */
 type ImageError = Error & { stage?: 'submit' | 'poll' | 'download' | 'prepare' };
 
+/**
+ * 画图专用的模型。
+ *
+ * ⚠️ 这里【不能】借用聊天用的那个模型名 —— 两者是两码事：
+ * 拿聊天的模型去画图，对方会直接拒绝，提示「这是聊天模型，请去用聊天接口」。
+ * （曾经就因为把聊天模型名带了进来，三个画图节点全部跑不通。）
+ */
+const IMAGE_MODEL = 'agnes-image-2.5-flash';
+
 function fail(msg: string, stage: ImageError['stage']): ImageError {
   const e = new Error(msg) as ImageError;
   e.stage = stage;
@@ -153,7 +162,8 @@ export async function createImage(
   else if (inputs.length > 1) extra.image = inputs;
 
   const payload: Record<string, unknown> = {
-    model: settings.model || 'agnes-image-2.5-flash',
+    // 画图必须用画图的模型（见 IMAGE_MODEL 的说明），聊天模型对方不收
+    model: IMAGE_MODEL,
     prompt,
     size: req.size,
     ratio: req.ratio,
@@ -347,7 +357,13 @@ async function explainImageHttpError(resp: Response): Promise<string> {
     return '出图的人太多了，被暂时挡住了。等一分钟再试。';
   }
   if (resp.status === 400) {
-    return `这次的要求对方不接受：${detail || '描述或尺寸可能不合规'}\n换个说法或换个尺寸再试试。`;
+    // 「拿聊天的模型来画图」这类用错模型的请求，对方也是回 400，单独翻成人话
+    if (/chat model|chat\/completions/i.test(detail)) {
+      return '画图得用画图的模型，刚才拿错了。这个错已经修好，直接再跑一次就行。';
+    }
+    // 请求编号是对方内部的记账信息，对外没意义，别吓唬人
+    const brief = detail.replace(/\s*\(request id:[^)]*\)\s*/gi, '').trim();
+    return `这次的要求对方不接受：${brief || '描述或尺寸可能不合规'}\n换个说法或换个尺寸再试试。`;
   }
   if (resp.status >= 500) {
     return '出图服务自己出了点状况，不是你的问题。等一会儿再试。';
